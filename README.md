@@ -1,6 +1,6 @@
 # Football Data Analytics Software
 
-[![Football Data Analytics CI](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml)
+[![Football Data Analytics CI](https://github.com/jennasilvera/football-data-analytics-software/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/football-data-analytics-software/actions/workflows/ci.yml)
 
 A research- and production-oriented analytics platform for **senior men's international football**.
 
@@ -79,6 +79,13 @@ The completed foundation currently includes:
 - Immutable rating snapshots
 - Point-in-time feature contracts
 - Explicit observed / missing / imputed feature states
+- Separate prediction-time and target-availability semantics for supervised examples
+- Conservative completed-result eligibility when exact publication time is unknown
+- Content-addressed V2 model datasets with temporal/imputation policy identity
+- Native logistic-regression and histogram-gradient-boosting baselines
+- Expanding- and rolling-window temporal fold contracts
+- Log loss, multiclass Brier score, Ranked Probability Score, and accuracy
+- Deterministic per-fold model training and out-of-sample backtest artifacts
 
 The migration policy is simple: **preserve proven behavior, replace unsafe contracts, and change modeling assumptions only after parity is measurable.**
 
@@ -324,13 +331,24 @@ The project is being migrated in controlled slices.
 
 ### Modeling and evaluation
 
+Implemented foundation:
+
 - Native V2 probabilistic model interfaces
-- Logistic and tree-model migration
+- Logistic-regression and histogram-gradient-boosting baselines
+- Content-addressed training datasets and deterministic training identities
+- Expanding- and rolling-window split policies
+- Target-availability-safe temporal training folds
+- Accuracy, log loss, multiclass Brier score, and Ranked Probability Score
+- Per-fold and aggregate out-of-sample evaluation
+
+Next research layers:
+
 - Poisson migration
-- Calibration layer
-- Ensemble research
-- Rolling backtest engine
-- Experiment metadata and reproducibility
+- Calibration diagnostics and calibration layer
+- Ensemble research using out-of-sample base predictions
+- Competition/confederation evaluation slices
+- Market benchmark comparison
+- Persisted experiment/model artifact registry
 
 ### Product interfaces
 
@@ -367,8 +385,9 @@ Large migrations are intentionally split into reviewable pull requests rather th
 GitHub Actions runs:
 
 1. Ruff linting
-2. Full pytest suite
-3. Existing end-to-end sample forecasting pipeline
+2. V2 static type checks with mypy
+3. Full pytest suite
+4. Existing end-to-end sample forecasting pipeline
 
 The legacy pipeline remains in CI during V2 migration to catch regressions while replacement components are introduced.
 
