@@ -1,6 +1,6 @@
 # Football Data Analytics Software
 
-[![Football Data Analytics CI](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml)
+[![Football Data Analytics CI](https://github.com/jennasilvera/football-data-analytics-software/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/football-data-analytics-software/actions/workflows/ci.yml)
 
 A research- and production-oriented analytics platform for **senior men's international football**.
 
@@ -55,9 +55,9 @@ This package is retained during migration so useful behavior can be preserved an
 
 ### V2 implementation: `football_analytics`
 
-The V2 architecture is being built on the `reimplementation/v2` branch and related stacked branches.
+The V2 components are integrated on `reimplementation/v2-integrated-research`, preserving the existing staged branches and legacy pipeline.
 
-The completed foundation currently includes:
+The integrated foundation currently includes:
 
 - Canonical Team, Competition, and Match domain types
 - Explicit exact-kickoff vs date-only temporal precision
@@ -79,6 +79,18 @@ The completed foundation currently includes:
 - Immutable rating snapshots
 - Point-in-time feature contracts
 - Explicit observed / missing / imputed feature states
+- Competition, squad availability, travel, and market snapshot feature providers
+- Native logistic and histogram gradient boosting models
+- Target-availability-safe temporal backtesting and calibration diagnostics
+- Content-addressed experiment manifests and a JSON registry
+- Executable V2 research service and CLI with auditable reports
+- Separate prediction-time and target-availability semantics for supervised examples
+- Conservative completed-result eligibility when exact publication time is unknown
+- Content-addressed V2 model datasets with temporal/imputation policy identity
+- Native logistic-regression and histogram-gradient-boosting baselines
+- Expanding- and rolling-window temporal fold contracts
+- Log loss, multiclass Brier score, Ranked Probability Score, and accuracy
+- Deterministic per-fold model training and out-of-sample backtest artifacts
 
 The migration policy is simple: **preserve proven behavior, replace unsafe contracts, and change modeling assumptions only after parity is measurable.**
 
@@ -182,7 +194,7 @@ Market prices can be used as research benchmarks, calibration references, and co
 
 ## Repository Structure
 
-The default branch currently centers on the operational `wc_forecast` package. The V2 reimplementation branches add `football_analytics` and dedicated V2 contract tests alongside it.
+Both `wc_forecast` and `football_analytics` are retained. The integrated V2 branch provides a native research command alongside the operational legacy CLI.
 
 ```text
 .
@@ -203,7 +215,25 @@ The default branch currently centers on the operational `wc_forecast` package. T
 └── pyproject.toml
 ```
 
-Until the staged reimplementation is merged, `wc_forecast` remains the primary executable implementation on `master`.
+The V2 research command becomes available on `master` when the integration PR is merged.
+
+## Quickstart: Native V2 Research
+
+After installing the dependencies below, run:
+
+```bash
+make demo-v2
+python -m football_analytics research --help
+```
+
+This runs canonical ingestion → point-in-time form features → temporal backtest
+→ calibration diagnostics → experiment registration. It writes a content-addressed
+JSON report containing predictions, fold metrics, source/catalog provenance, and
+runtime versions under `outputs/v2-research/`.
+
+The sample is synthetic and validates the workflow, not predictive performance.
+The initial CLI exposes the rolling-form baseline; other V2 providers remain
+available through their typed interfaces. See [workflow semantics and limitations](docs/v2_research_workflow.md).
 
 ## Quickstart: Existing Operational Pipeline
 
@@ -324,13 +354,24 @@ The project is being migrated in controlled slices.
 
 ### Modeling and evaluation
 
+Implemented foundation:
+
 - Native V2 probabilistic model interfaces
-- Logistic and tree-model migration
+- Logistic-regression and histogram-gradient-boosting baselines
+- Content-addressed training datasets and deterministic training identities
+- Expanding- and rolling-window split policies
+- Target-availability-safe temporal training folds
+- Accuracy, log loss, multiclass Brier score, and Ranked Probability Score
+- Per-fold and aggregate out-of-sample evaluation
+
+Next research layers:
+
 - Poisson migration
-- Calibration layer
-- Ensemble research
-- Rolling backtest engine
-- Experiment metadata and reproducibility
+- Calibration diagnostics and calibration layer
+- Ensemble research using out-of-sample base predictions
+- Competition/confederation evaluation slices
+- Market benchmark comparison
+- Persisted experiment/model artifact registry
 
 ### Product interfaces
 
@@ -367,8 +408,9 @@ Large migrations are intentionally split into reviewable pull requests rather th
 GitHub Actions runs:
 
 1. Ruff linting
-2. Full pytest suite
-3. Existing end-to-end sample forecasting pipeline
+2. V2 static type checks with mypy
+3. Full pytest suite
+4. Existing end-to-end sample forecasting pipeline
 
 The legacy pipeline remains in CI during V2 migration to catch regressions while replacement components are introduced.
 

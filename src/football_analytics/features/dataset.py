@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
 
+from football_analytics.data.contracts import ensure_utc
 from football_analytics.data.normalization import CanonicalMatchRecord
 from football_analytics.domain import Match, MatchOutcome, MatchStatus
 from football_analytics.features.base import (
@@ -12,7 +13,12 @@ from football_analytics.features.base import (
     PredictionContext,
     build_feature_vector,
 )
-from football_analytics.features.history import completed_record_is_before_cutoff
+from football_analytics.features.history import (
+    DEFAULT_RESULT_ELIGIBILITY_POLICY,
+    CompletedResultEligibilityPolicy,
+    ResultEligibilityBasis,
+    completed_record_is_before_cutoff,
+)
 
 
 class HistoricalFeatureLeakageError(ValueError):
@@ -56,32 +62,66 @@ DEFAULT_HISTORICAL_CUTOFF_POLICY = PredictionCutoffPolicy(
 
 @dataclass(frozen=True, slots=True)
 class HistoricalFeatureExample:
-    """One supervised historical example with its auditable feature vector."""
+    """One supervised example with separate feature and target availability times."""
 
     match_id: str
     source_match_id: str
     prediction_time: datetime
+    target_available_at: datetime
+    target_availability_basis: ResultEligibilityBasis
     target: MatchOutcome
     vector: FeatureVector
 
     def __post_init__(self) -> None:
-        if self.vector.match_id != self.match_id:
+        match_id = self.match_id.strip()
+        source_match_id = self.source_match_id.strip()
+        prediction_time = ensure_utc(self.prediction_time, "prediction_time")
+        target_available_at = ensure_utc(
+            self.target_available_at,
+            "target_available_at",
+        )
+
+        if not match_id:
+            raise ValueError("Historical example match_id must not be blank.")
+        if not source_match_id:
+            raise ValueError("Historical example source_match_id must not be blank.")
+        if target_available_at <= prediction_time:
+            raise ValueError(
+                "Historical target must become available after prediction_time."
+            )
+        if self.vector.match_id != match_id:
             raise ValueError("Historical example match_id does not match feature vector.")
-        if self.vector.prediction_time != self.prediction_time:
+        if self.vector.prediction_time != prediction_time:
             raise ValueError(
                 "Historical example prediction_time does not match feature vector."
             )
 
+        object.__setattr__(self, "match_id", match_id)
+        object.__setattr__(self, "source_match_id", source_match_id)
+        object.__setattr__(self, "prediction_time", prediction_time)
+        object.__setattr__(self, "target_available_at", target_available_at)
+
 
 @dataclass(frozen=True, slots=True)
 class HistoricalFeatureDataset:
-    """Immutable historical examples sharing one feature and cutoff policy."""
+    """Immutable historical examples sharing temporal and feature policies."""
 
     feature_set_id: str
     cutoff_policy_id: str
+    result_eligibility_policy_id: str
     examples: tuple[HistoricalFeatureExample, ...]
 
     def __post_init__(self) -> None:
+        feature_set_id = self.feature_set_id.strip()
+        cutoff_policy_id = self.cutoff_policy_id.strip()
+        result_policy_id = self.result_eligibility_policy_id.strip()
+
+        if not feature_set_id:
+            raise ValueError("feature_set_id must not be blank.")
+        if not cutoff_policy_id:
+            raise ValueError("cutoff_policy_id must not be blank.")
+        if not result_policy_id:
+            raise ValueError("result_eligibility_policy_id must not be blank.")
         if not self.examples:
             raise ValueError("Historical feature dataset must not be empty.")
 
@@ -90,10 +130,18 @@ class HistoricalFeatureDataset:
             raise ValueError("Historical feature dataset contains duplicate match IDs.")
 
         for example in self.examples:
-            if example.vector.feature_set_id != self.feature_set_id:
+            if example.vector.feature_set_id != feature_set_id:
                 raise ValueError(
                     "Historical feature dataset contains mixed feature-set IDs."
                 )
+
+        object.__setattr__(self, "feature_set_id", feature_set_id)
+        object.__setattr__(self, "cutoff_policy_id", cutoff_policy_id)
+        object.__setattr__(
+            self,
+            "result_eligibility_policy_id",
+            result_policy_id,
+        )
 
 
 def build_historical_feature_dataset(
@@ -101,8 +149,11 @@ def build_historical_feature_dataset(
     *,
     providers: Sequence[FeatureProvider],
     cutoff_policy: PredictionCutoffPolicy = DEFAULT_HISTORICAL_CUTOFF_POLICY,
+    result_eligibility_policy: CompletedResultEligibilityPolicy = (
+        DEFAULT_RESULT_ELIGIBILITY_POLICY
+    ),
 ) -> HistoricalFeatureDataset:
-    """Build point-in-time supervised examples from completed canonical matches."""
+    """Build point-in-time examples without exposing targets before eligibility."""
 
     completed = [
         record
@@ -129,6 +180,7 @@ def build_historical_feature_dataset(
 
     for record in completed:
         prediction_time = cutoff_policy.cutoff_for(record.match)
+        target_eligibility = result_eligibility_policy.eligibility_for(record)
         context = PredictionContext(
             match=record.match,
             prediction_time=prediction_time,
@@ -140,6 +192,7 @@ def build_historical_feature_dataset(
             target=record,
             records_by_source_id=records_by_source_id,
             records_by_match_id=records_by_match_id,
+            result_eligibility_policy=result_eligibility_policy,
         )
 
         home_score = record.home_score
@@ -152,6 +205,8 @@ def build_historical_feature_dataset(
                 match_id=record.match.match_id,
                 source_match_id=record.source_match_id,
                 prediction_time=prediction_time,
+                target_available_at=target_eligibility.eligible_at,
+                target_availability_basis=target_eligibility.basis,
                 target=_outcome(home_score, away_score),
                 vector=vector,
             )
@@ -169,6 +224,7 @@ def build_historical_feature_dataset(
     return HistoricalFeatureDataset(
         feature_set_id=next(iter(feature_set_ids)),
         cutoff_policy_id=cutoff_policy.policy_id,
+        result_eligibility_policy_id=result_eligibility_policy.policy_id,
         examples=tuple(examples),
     )
 
@@ -179,6 +235,7 @@ def _assert_lineage_before_cutoff(
     target: CanonicalMatchRecord,
     records_by_source_id: dict[str, CanonicalMatchRecord],
     records_by_match_id: dict[str, CanonicalMatchRecord],
+    result_eligibility_policy: CompletedResultEligibilityPolicy,
 ) -> None:
     cutoff = vector.prediction_time
 
@@ -188,10 +245,11 @@ def _assert_lineage_before_cutoff(
             if linked is not None and not completed_record_is_before_cutoff(
                 linked,
                 cutoff,
+                policy=result_eligibility_policy,
             ):
                 raise HistoricalFeatureLeakageError(
                     f"Feature {feature.definition.name} references source record "
-                    f"{source_record_id!r} that is not before the cutoff for "
+                    f"{source_record_id!r} that is not eligible before the cutoff for "
                     f"{target.match.match_id!r}."
                 )
 
@@ -200,10 +258,11 @@ def _assert_lineage_before_cutoff(
             if linked is not None and not completed_record_is_before_cutoff(
                 linked,
                 cutoff,
+                policy=result_eligibility_policy,
             ):
                 raise HistoricalFeatureLeakageError(
                     f"Feature {feature.definition.name} references match artifact "
-                    f"{artifact_id!r} that is not before the cutoff for "
+                    f"{artifact_id!r} that is not eligible before the cutoff for "
                     f"{target.match.match_id!r}."
                 )
 
