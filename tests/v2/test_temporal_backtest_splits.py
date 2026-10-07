@@ -19,6 +19,7 @@ from football_analytics.features import (
     FeatureVector,
     HistoricalFeatureDataset,
     HistoricalFeatureExample,
+    ResultEligibilityBasis,
     feature_set_id_for_definitions,
 )
 
@@ -31,7 +32,12 @@ DEFINITION = FeatureDefinition(
 FEATURE_SET_ID = feature_set_id_for_definitions([DEFINITION])
 
 
-def _example(match_id: str, prediction_time: datetime) -> HistoricalFeatureExample:
+def _example(
+    match_id: str,
+    prediction_time: datetime,
+    *,
+    target_available_at: datetime | None = None,
+) -> HistoricalFeatureExample:
     vector = FeatureVector(
         match_id=match_id,
         prediction_time=prediction_time,
@@ -49,6 +55,14 @@ def _example(match_id: str, prediction_time: datetime) -> HistoricalFeatureExamp
         match_id=match_id,
         source_match_id=f"source-{match_id}",
         prediction_time=prediction_time,
+        target_available_at=(
+            target_available_at
+            if target_available_at is not None
+            else prediction_time + timedelta(hours=12)
+        ),
+        target_availability_basis=(
+            ResultEligibilityBasis.CONSERVATIVE_NEXT_UTC_DAY
+        ),
         target=MatchOutcome.HOME_WIN,
         vector=vector,
     )
@@ -58,6 +72,7 @@ def _dataset() -> HistoricalFeatureDataset:
     return HistoricalFeatureDataset(
         feature_set_id=FEATURE_SET_ID,
         cutoff_policy_id="test-cutoffs",
+        result_eligibility_policy_id="test-result-eligibility",
         examples=(
             _example("m2020", datetime(2020, 1, 1, tzinfo=UTC)),
             _example("m2021", datetime(2021, 1, 1, tzinfo=UTC)),
@@ -84,6 +99,10 @@ def test_expanding_window_uses_all_history_before_cutoff() -> None:
     assert fold.training_start is None
     assert report.source_feature_set_id == FEATURE_SET_ID
     assert report.source_cutoff_policy_id == "test-cutoffs"
+    assert (
+        report.source_result_eligibility_policy_id
+        == "test-result-eligibility"
+    )
     assert report.skipped == ()
 
 
@@ -122,6 +141,43 @@ def test_requested_cutoffs_record_explicit_skip_reasons() -> None:
         TemporalFoldSkipReason.INSUFFICIENT_TRAINING_EXAMPLES,
         TemporalFoldSkipReason.EMPTY_EVALUATION_WINDOW,
     ]
+
+
+
+def test_training_excludes_targets_not_available_at_fold_cutoff() -> None:
+    dataset = HistoricalFeatureDataset(
+        feature_set_id=FEATURE_SET_ID,
+        cutoff_policy_id="test-cutoffs",
+        result_eligibility_policy_id="test-result-eligibility",
+        examples=(
+            _example("m2020", datetime(2020, 1, 1, tzinfo=UTC)),
+            _example(
+                "m2021-pending",
+                datetime(2021, 12, 31, tzinfo=UTC),
+                target_available_at=datetime(2022, 1, 2, tzinfo=UTC),
+            ),
+            _example("m2022-test", datetime(2022, 1, 10, tzinfo=UTC)),
+        ),
+    )
+    policy = ExpandingWindowPolicy(
+        policy_id="target-availability-v1",
+        cutoffs=(datetime(2022, 1, 1, tzinfo=UTC),),
+        evaluation_window=timedelta(days=30),
+        min_train_examples=2,
+    )
+
+    report = build_expanding_window_folds(dataset, policy)
+
+    assert report.folds == ()
+    assert len(report.skipped) == 1
+    skipped = report.skipped[0]
+    assert (
+        skipped.reason
+        is TemporalFoldSkipReason.INSUFFICIENT_AVAILABLE_TARGETS
+    )
+    assert skipped.train_count == 1
+    assert skipped.test_count == 1
+    assert skipped.unavailable_target_count == 1
 
 
 def test_policy_normalizes_and_sorts_aware_cutoffs() -> None:
