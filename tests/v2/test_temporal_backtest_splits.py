@@ -82,6 +82,8 @@ def test_expanding_window_uses_all_history_before_cutoff() -> None:
     assert [example.match_id for example in fold.train] == ["m2020", "m2021"]
     assert [example.match_id for example in fold.test] == ["m2022"]
     assert fold.training_start is None
+    assert report.source_feature_set_id == FEATURE_SET_ID
+    assert report.source_cutoff_policy_id == "test-cutoffs"
     assert report.skipped == ()
 
 
