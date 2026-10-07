@@ -9,7 +9,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from football_analytics.domain import MatchOutcome
-from football_analytics.evaluation import OutcomeProbabilities
+from football_analytics.evaluation.probabilities import OutcomeProbabilities
 from football_analytics.features import MaterializedFeatureRow
 from football_analytics.models.base import (
     ModelFamily,
