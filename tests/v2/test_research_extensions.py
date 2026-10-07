@@ -102,6 +102,18 @@ def test_market_join_coverage_excludes_future_quotes_and_unknown_settlement(inpu
         run.normalization.normalized,
         [(quote, ScoreBasis.REGULATION_TIME), (future, ScoreBasis.REGULATION_TIME)],
     )
+    corrupted = tuple(
+        replace(
+            r,
+            home_score=r.away_score + 1 if prediction.actual.value != "home_win" else 0,
+            away_score=0 if prediction.actual.value != "home_win" else 1,
+        )
+        if r.match.match_id == prediction.match_id
+        else r
+        for r in run.normalization.normalized
+    )
+    with pytest.raises(ValueError, match="target conflicts"):
+        market_benchmark(run.backtest, corrupted, [(quote, ScoreBasis.REGULATION_TIME)])
     assert report["matched_predictions"] == 1
     assert report["rows"][0]["bookmakers"] == ["book"]
     assert len(report["excluded"]) + 1 == report["total_predictions"]

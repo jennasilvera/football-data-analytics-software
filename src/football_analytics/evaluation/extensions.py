@@ -92,6 +92,10 @@ def market_benchmark(
 ) -> dict[str, Any]:
     if timing not in ("prediction_time", "closing"):
         raise ValueError("Market timing must be prediction_time or closing.")
+    from football_analytics.evaluation.diagnostics import build_evaluation_diagnostics
+
+    # Reuse canonical outcome, fold, target-basis and pre-match-time verification.
+    build_evaluation_diagnostics(backtest, records)
     source = {r.match.match_id: r for r in records}
     if len(source) != len(records):
         raise ValueError("Duplicate canonical market-benchmark matches.")
