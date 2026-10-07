@@ -172,15 +172,22 @@ def _report_id(
     *,
     n_bins: int,
 ) -> str:
+    serialized = [
+        {
+            "actual": prediction.actual.value,
+            "probabilities": list(prediction.probabilities.as_tuple()),
+        }
+        for prediction in predictions
+    ]
+    serialized.sort(
+        key=lambda item: (
+            str(item["actual"]),
+            tuple(float(value) for value in item["probabilities"]),
+        )
+    )
     payload = {
         "n_bins": n_bins,
-        "predictions": [
-            {
-                "actual": prediction.actual.value,
-                "probabilities": list(prediction.probabilities.as_tuple()),
-            }
-            for prediction in predictions
-        ],
+        "predictions": serialized,
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
