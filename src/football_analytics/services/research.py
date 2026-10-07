@@ -62,6 +62,8 @@ def run_research(
     model_spec: ModelTrainingSpec,
     calibration_bins: int = 10,
     code_revision: str | None = None,
+    feature_groups: tuple[str, ...] | None = None,
+    feature_context: dict | None = None,
 ) -> ResearchResult:
     """Run a declared model family without transport or storage coupling.
 
@@ -86,9 +88,18 @@ def run_research(
     if normalized.excluded or normalized.quarantined:
         raise ResearchInputError(normalized)
     provider = RollingFormFeatureProvider(normalized.normalized)
+    from football_analytics.features.composition import build_providers
+
+    providers = (
+        [provider]
+        if feature_groups is None
+        else build_providers(
+            normalized.normalized, catalogs, groups=feature_groups, context=feature_context
+        )
+    )
     dataset = build_historical_feature_dataset(
         normalized.normalized,
-        providers=[] if model_spec.family is ModelFamily.POISSON else [provider],
+        providers=[] if model_spec.family is ModelFamily.POISSON else providers,
     )
     imputation = ImputationPolicy(
         policy_id="rolling_form_zero_with_status_v1",
@@ -98,7 +109,8 @@ def run_research(
                 value=0.0,
                 method="declared_zero_with_missingness_indicator",
             )
-            for definition in provider.definitions()
+            for selected_provider in providers
+            for definition in selected_provider.definitions()
         ),
         include_status_indicators=True,
     )
@@ -162,6 +174,8 @@ def run_research_comparison(
     model_specs: tuple[ModelTrainingSpec, ...],
     calibration_bins: int = 10,
     code_revision: str | None = None,
+    feature_groups: tuple[str, ...] | None = None,
+    feature_context: dict | None = None,
 ) -> ResearchComparisonResult:
     """Evaluate declared models on the same source and split; first model is reference."""
     if len(model_specs) < 2:
@@ -174,6 +188,8 @@ def run_research_comparison(
             model_spec=spec,
             calibration_bins=calibration_bins,
             code_revision=code_revision,
+            feature_groups=feature_groups,
+            feature_context=feature_context,
         )
         for spec in model_specs
     )

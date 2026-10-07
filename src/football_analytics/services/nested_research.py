@@ -82,6 +82,8 @@ def run_nested_research(
     nested_policy: NestedHoldoutPolicy,
     calibration_bins: int = 10,
     code_revision: str | None = None,
+    feature_groups: tuple[str, ...] | None = None,
+    feature_context: dict | None = None,
 ) -> NestedResearchResult:
     if len({spec.spec_id for spec in model_specs}) != len(model_specs):
         raise ValueError("Nested base model spec IDs must be unique.")
@@ -95,6 +97,8 @@ def run_nested_research(
         model_specs=model_specs,
         calibration_bins=calibration_bins,
         code_revision=code_revision,
+        feature_groups=feature_groups,
+        feature_context=feature_context,
     )
     if any(run.backtest.skipped_folds for run in baseline.runs):
         raise ValueError("Nested research requires every declared outer fold to be valid.")
@@ -155,6 +159,8 @@ def run_nested_research(
             model_specs=model_specs,
             calibration_bins=calibration_bins,
             code_revision=code_revision,
+            feature_groups=feature_groups,
+            feature_context=feature_context,
         )
         inner_folds = [run.backtest.folds[0] for run in inner.runs]
         outer_folds = [run.backtest.folds[outer_index] for run in baseline.runs]

@@ -164,3 +164,7 @@ forecast-workflow:
 .PHONY: demo-v2-nested
 demo-v2-nested:
 	$(MAKE) demo-v2 V2_MODEL=all V2_EXTRA_ARGS="--postprocess-days 21 --min-postprocess 5"
+
+.PHONY: demo-platform
+demo-platform:
+	PYTHONPATH=src $(PYTHON) scripts/demo_platform.py

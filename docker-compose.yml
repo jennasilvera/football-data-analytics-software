@@ -1,0 +1,43 @@
+services:
+  api:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      FOOTBALL_API_KEY: ${FOOTBALL_API_KEY:?Set FOOTBALL_API_KEY}
+      FOOTBALL_DATABASE: /data/platform.sqlite3
+      FOOTBALL_MAX_MODEL_AGE_DAYS: ${FOOTBALL_MAX_MODEL_AGE_DAYS:-90}
+    volumes:
+      - football-data:/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+  dashboard:
+    build: .
+    command: ["football-analytics", "dashboard", "--host", "0.0.0.0", "--port", "8501", "--database", "/tmp/dashboard.sqlite3"]
+    ports:
+      - "127.0.0.1:8501:8501"
+    environment:
+      FOOTBALL_API_URL: http://api:8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8501/_stcore/health',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  football-data:

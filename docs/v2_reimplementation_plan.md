@@ -1,5 +1,8 @@
 # V2 Reimplementation Plan
 
+This is the historical migration design and legacy audit. For implemented native
+capabilities and current release gates, see [implementation status](implementation_status.md).
+
 ## Purpose
 
 This document defines the controlled migration from the current `wc_forecast`

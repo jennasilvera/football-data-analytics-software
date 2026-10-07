@@ -36,3 +36,9 @@ data/external/*
 *.sqlite3
 data/*.sqlite
 data/*.sqlite3
+
+# SQLite sidecars and deployment secrets
+*.sqlite3-wal
+*.sqlite3-shm
+.env.*
+!.env.example

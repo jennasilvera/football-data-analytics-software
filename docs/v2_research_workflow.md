@@ -84,7 +84,9 @@ identity: runtime/catalog/source changes can create a different report while
 retaining an experiment ID if the evaluated model datasets are unchanged.
 Reproducibility across different numerical libraries or hardware is not promised.
 Poisson fitted state is persisted as self-validating JSON, without pickle.
-Classifier binaries are not yet persisted. See the [Poisson model card](poisson_model_card.md).
+Operational training now persists frequency, logistic and numeric boosting state as
+portable JSON in a forecast bundle, with export parity checks. Research runs continue
+to emit their fold Poisson/transform artifacts. See the [model card](model_card.md).
 
 ## Integration status
 
@@ -95,10 +97,10 @@ squad/travel providers. Probability contracts now live in the domain layer to
 avoid a feature/evaluation import cycle; the old evaluation import remains a
 compatible re-export. Fresh-process imports are regression-tested.
 
-Native Poisson migration, portable score-model artifacts and paired comparisons
-are now implemented. The full reimplementation remains in progress: see the
-[requirements map](implementation_status.md) for remaining calibration/ensemble,
-source governance, classifier persistence, evaluation, API and deployment work.
+Native model bundles, temporal calibration/ensembles, research extensions, operational
+services, API, dashboard and deployment artifacts are implemented. See the
+[requirements map](implementation_status.md) for current coverage and the external
+data, empirical-validation and commercial-release gates.
 
 ## Comparing models
 
@@ -121,3 +123,17 @@ the full grid, modal score, entropy and omitted tail probability.
 `make demo-v2-nested` adds chronological inner holdout fitting to the four-model
 comparison. See [temporal postprocessing](temporal_postprocessing.md) for the
 complete fitting policy, artifacts, failure behavior and evaluation limits.
+
+
+## Declared research extensions
+
+`--feature-groups form,schedule,competition` selects feature families before fitting.
+`--feature-context FILE.json` supplies timestamped rankings, squad, market, competition,
+venue/team locations and manual records. See the data dictionary for contracts.
+`--ablate` evaluates a logistic/boosting full model and leave-one-family-out runs;
+it requires at least two declared families and identical temporal evaluation samples.
+`--paired-uncertainty` adds calendar-block paired-loss intervals with explicit sample
+and dependence assumptions. `--market-snapshots FILE.json` adds a prediction-time
+benchmark with publication/settlement checks and unmatched-coverage reasons.
+Closing-time benchmarks are available through the typed evaluation service and require
+known exact kickoff; they never become an earlier forecast feature.
