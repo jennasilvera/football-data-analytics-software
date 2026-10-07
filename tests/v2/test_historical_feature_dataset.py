@@ -13,6 +13,7 @@ from football_analytics.features import (
     FeatureValue,
     HistoricalFeatureLeakageError,
     PredictionCutoffPolicy,
+    ResultEligibilityBasis,
     RollingFormFeatureProvider,
     build_historical_feature_dataset,
 )
@@ -81,6 +82,12 @@ def test_date_only_dataset_uses_prior_day_cutoff_and_excludes_target_result() ->
     first, second = dataset.examples
     assert first.target is MatchOutcome.HOME_WIN
     assert second.target is MatchOutcome.DRAW
+    assert dataset.result_eligibility_policy_id == "completed_result_eligibility_v1"
+    assert first.target_available_at == datetime(2026, 1, 2, tzinfo=UTC)
+    assert (
+        first.target_availability_basis
+        is ResultEligibilityBasis.CONSERVATIVE_NEXT_UTC_DAY
+    )
     assert second.prediction_time == datetime(
         2026,
         1,
@@ -175,7 +182,7 @@ def test_historical_dataset_rejects_future_match_lineage() -> None:
         ),
     ]
 
-    with pytest.raises(HistoricalFeatureLeakageError, match="not before the cutoff"):
+    with pytest.raises(HistoricalFeatureLeakageError, match="not eligible before the cutoff"):
         build_historical_feature_dataset(
             records,
             providers=[_FutureLineageProvider()],
@@ -218,7 +225,7 @@ def test_historical_dataset_rejects_target_match_artifact_lineage() -> None:
         away_score=0,
     )
 
-    with pytest.raises(HistoricalFeatureLeakageError, match="not before the cutoff"):
+    with pytest.raises(HistoricalFeatureLeakageError, match="not eligible before the cutoff"):
         build_historical_feature_dataset(
             [record],
             providers=[_TargetArtifactProvider()],
