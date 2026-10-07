@@ -89,7 +89,13 @@ class JsonExperimentRegistry:
         payload = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("Experiment manifest JSON must contain an object.")
-        return ExperimentManifest.from_dict(payload)
+
+        manifest = ExperimentManifest.from_dict(payload)
+        if manifest.experiment_id != experiment_id:
+            raise ValueError(
+                "Stored experiment manifest ID does not match its registry path."
+            )
+        return manifest
 
     def list_ids(self) -> tuple[str, ...]:
         if not self.root.exists():
