@@ -1,5 +1,9 @@
 """Canonical data contracts, entity resolution, and temporal integrity helpers."""
 
+from football_analytics.data.batch import (
+    BatchNormalizationReport,
+    normalize_match_batch,
+)
 from football_analytics.data.contracts import (
     LeakageRisk,
     PointInTimeRecord,
@@ -31,6 +35,7 @@ from football_analytics.data.scope import (
 from football_analytics.data.sources import DataSourceDefinition, SourceRegistry
 
 __all__ = [
+    "BatchNormalizationReport",
     "CanonicalMatchRecord",
     "CompetitionEntityResolver",
     "CompetitionResolution",
@@ -52,5 +57,6 @@ __all__ = [
     "TemporalIntegrityError",
     "assert_pre_match_available",
     "assess_senior_mens_a_scope",
+    "normalize_match_batch",
     "normalize_match_observation",
 ]
