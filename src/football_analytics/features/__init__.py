@@ -23,6 +23,10 @@ from football_analytics.features.base import (
     build_feature_vector,
     feature_set_id_for_definitions,
 )
+from football_analytics.features.competition import (
+    CompetitionContextFeatureProvider,
+    MatchCompetitionContextObservation,
+)
 from football_analytics.features.dataset import (
     DEFAULT_HISTORICAL_CUTOFF_POLICY,
     HistoricalFeatureDataset,
@@ -36,6 +40,11 @@ from football_analytics.features.fifa_ranking import (
     FifaRankingObservation,
 )
 from football_analytics.features.form import RollingFormFeatureProvider
+from football_analytics.features.market import (
+    MarketSnapshotFeatureProvider,
+    MarketSnapshotObservation,
+    devig_decimal_odds,
+)
 from football_analytics.features.materialization import (
     AppliedImputation,
     ConstantImputationRule,
@@ -43,11 +52,6 @@ from football_analytics.features.materialization import (
     MaterializedFeatureRow,
     MissingFeaturePolicyError,
     materialize_feature_vector,
-)
-from football_analytics.features.market import (
-    MarketSnapshotFeatureProvider,
-    MarketSnapshotObservation,
-    devig_decimal_odds,
 )
 from football_analytics.features.rating import LegacyEloFeatureProvider
 from football_analytics.features.schedule import ScheduleRestFeatureProvider
@@ -59,6 +63,7 @@ from football_analytics.features.travel import (
 
 __all__ = [
     "AppliedImputation",
+    "CompetitionContextFeatureProvider",
     "ConstantImputationRule",
     "DEFAULT_HISTORICAL_CUTOFF_POLICY",
     "FeatureDefinition",
@@ -78,6 +83,7 @@ __all__ = [
     "LegacyEloFeatureProvider",
     "MarketSnapshotFeatureProvider",
     "MarketSnapshotObservation",
+    "MatchCompetitionContextObservation",
     "MaterializedFeatureRow",
     "MissingFeaturePolicyError",
     "PlayerAvailabilityObservation",
