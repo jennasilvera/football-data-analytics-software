@@ -5,7 +5,12 @@ from dataclasses import dataclass
 
 from football_analytics.data.normalization import CanonicalMatchRecord
 from football_analytics.domain import MatchStatus
-from football_analytics.ratings.base import RatingEngine, RatingSnapshot, RatingUpdate
+from football_analytics.ratings.base import (
+    RatingEngine,
+    RatingPrediction,
+    RatingSnapshot,
+    RatingUpdate,
+)
 from football_analytics.ratings.legacy_elo import rating_input_from_record
 
 
@@ -14,9 +19,18 @@ class AmbiguousRatingOrderError(ValueError):
 
 
 @dataclass(frozen=True, slots=True)
+class RatingReplayPrediction:
+    """Pre-match rating prediction captured for one canonical replay row."""
+
+    match_id: str
+    prediction: RatingPrediction
+
+
+@dataclass(frozen=True, slots=True)
 class RatingReplayResult:
     """Immutable outputs from replaying canonical completed matches."""
 
+    predictions: tuple[RatingReplayPrediction, ...]
     updates: tuple[RatingUpdate, ...]
     snapshots: tuple[RatingSnapshot, ...]
 
@@ -38,6 +52,7 @@ def replay_completed_matches(
     _validate_replay_records(records)
 
     ordered = sorted(records, key=_replay_sort_key)
+    predictions: list[RatingReplayPrediction] = []
     updates: list[RatingUpdate] = []
 
     for record in ordered:
@@ -50,6 +65,16 @@ def replay_completed_matches(
                 f"Missing competition name for competition_id: {competition_id}"
             ) from exc
 
+        predictions.append(
+            RatingReplayPrediction(
+                match_id=record.match.match_id,
+                prediction=engine.predict(
+                    home_team_id=record.match.home_team_id,
+                    away_team_id=record.match.away_team_id,
+                    neutral=record.match.neutral,
+                ),
+            )
+        )
         updates.append(
             engine.update(
                 rating_input_from_record(
@@ -60,6 +85,7 @@ def replay_completed_matches(
         )
 
     return RatingReplayResult(
+        predictions=tuple(predictions),
         updates=tuple(updates),
         snapshots=engine.snapshots(),
     )
