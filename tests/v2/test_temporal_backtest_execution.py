@@ -17,6 +17,7 @@ from football_analytics.features import (
     HistoricalFeatureDataset,
     HistoricalFeatureExample,
     ImputationPolicy,
+    ResultEligibilityBasis,
     feature_set_id_for_definitions,
 )
 from football_analytics.models import (
@@ -76,6 +77,10 @@ def _example(index: int) -> HistoricalFeatureExample:
         match_id=match_id,
         source_match_id=f"source-{match_id}",
         prediction_time=prediction_time,
+        target_available_at=prediction_time + timedelta(hours=6),
+        target_availability_basis=(
+            ResultEligibilityBasis.CONSERVATIVE_NEXT_UTC_DAY
+        ),
         target=target,
         vector=vector,
     )
@@ -112,6 +117,7 @@ def test_temporal_backtest_fits_each_fold_and_aggregates_predictions() -> None:
     assert result.prediction_count == 6
     assert result.aggregate_metrics.n_predictions == 6
     assert result.skipped_folds == ()
+    assert result.result_eligibility_policy_id == "result_eligibility_v1"
 
     assert [fold.train_count for fold in result.folds] == [6, 9]
     assert [fold.test_count for fold in result.folds] == [3, 3]
