@@ -1,7 +1,7 @@
 # Implementation status against the product requirements
 
 This map tracks the supplied Football Data Analytics Software requirements as
-of the native temporal postprocessing milestone. A legacy implementation does not
+of the native evaluation diagnostics milestone. A legacy implementation does not
 imply that the corresponding native V2 capability is complete. The intended
 scope remains official senior men's A-international football only.
 
@@ -13,10 +13,10 @@ scope remains official senior men's A-international football only.
 | Features | Form, rest, rankings, competition, travel, squad availability, market snapshots | Manager/manual intelligence, opponent adjustment, coverage monitoring and persistent feature store |
 | Models | Class-frequency, logistic, histogram boosting, independent Poisson, nested temperature scaling and convex ensemble | Shrinkage/uncertainty research; real-data calibration validation |
 | Model artifacts | Immutable portable Poisson/transform JSON plus experiment manifests | Versioned classifier artifacts, promotion metadata and environment compatibility |
-| Evaluation | Expanding/rolling backtests, log loss/Brier/RPS, calibration diagnostics, paired comparison | Competition/confederation slices, ablation, benchmark joins, interval coverage and drift |
+| Evaluation | Expanding/rolling backtests, log loss/Brier/RPS, calibration diagnostics, paired comparison, competition/team/venue/year slices | Historical confederation slices, ablation, benchmark joins, interval coverage and drift |
 | Match forecasts | Poisson replay with expected goals, grid, mode, entropy and tail mass | Unified multi-model service; explanatory drivers; calibrated intervals and freshness reports |
 | Reports | Auditable research JSON, model comparison Markdown, Poisson model card | Team/competition intelligence and complete field/feature dictionary |
-| Post-match diagnostics | Legacy only | Native upset/error/rating-movement and trend analysis |
+| Post-match diagnostics | Native per-match probability losses, entropy and largest-loss reports | Feature attribution, rating-movement and trend analysis |
 | CLI | Research, all-model comparison and Poisson replay; installed `football-analytics` entry point | Modular ingestion, ratings, training, unified prediction and reporting commands |
 | API | Legacy FastAPI only | Native versioned routers backed by application services and repositories |
 | Dashboard | Legacy only | Native research dashboard consuming governed artifacts |
@@ -65,8 +65,9 @@ cutoffs, canonical IDs, training cutoff and known team histories are enforced.
 2. **Calibration validation.** Nested holdout fitting and leakage tests are implemented.
    Validate transfer to refitted models on governed real sources, assess sample
    requirements and subgroup reliability, and reserve an untouched final test period.
-3. **Research diagnostics.** Add evaluation slices, market benchmark joins,
-   ablations and post-match errors. Report sample coverage and paired uncertainty.
+3. **Research diagnostics.** Slice metrics and per-match forecast losses are implemented.
+   Add market benchmark joins, ablations, historical confederation metadata and
+   paired uncertainty with an explicit dependence/resampling policy.
 4. **Ratings and intelligence.** Add uncertainty-aware ratings, schedule-adjusted
    trends and team reports; validate sparse-team behavior and rating replay.
 5. **Unified inference and storage.** Add classifier artifact support and native
