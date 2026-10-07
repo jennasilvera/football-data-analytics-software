@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -127,6 +128,26 @@ def test_experiment_manifest_is_deterministic_and_self_describing() -> None:
 def test_experiment_identity_changes_with_code_revision() -> None:
     first = build_experiment_manifest(_backtest(), code_revision="abc123")
     second = build_experiment_manifest(_backtest(), code_revision="def456")
+
+    assert first.experiment_id != second.experiment_id
+
+
+
+def test_experiment_identity_changes_with_reported_metrics() -> None:
+    baseline = _backtest()
+    changed = replace(
+        baseline,
+        aggregate_metrics=EvaluationMetrics(
+            n_predictions=2,
+            accuracy=0.75,
+            log_loss=0.7,
+            multiclass_brier_score=0.45,
+            ranked_probability_score=0.18,
+        ),
+    )
+
+    first = build_experiment_manifest(baseline)
+    second = build_experiment_manifest(changed)
 
     assert first.experiment_id != second.experiment_id
 
