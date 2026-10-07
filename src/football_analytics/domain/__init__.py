@@ -3,6 +3,7 @@
 from football_analytics.domain.competitions import Competition, CompetitionKind
 from football_analytics.domain.matches import (
     Match,
+    MatchOutcome,
     MatchStatus,
     MatchTimePrecision,
 )
@@ -13,6 +14,7 @@ __all__ = [
     "CompetitionKind",
     "Confederation",
     "Match",
+    "MatchOutcome",
     "MatchStatus",
     "MatchTimePrecision",
     "Team",
