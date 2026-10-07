@@ -42,8 +42,8 @@ class ModelTrainingSpec:
         if self.random_seed < 0:
             raise ValueError("random_seed must be non-negative.")
 
-        parameter_names = [name for name, _ in self.parameters]
-        if any(not name.strip() for name in parameter_names):
+        parameter_names = [name.strip() for name, _ in self.parameters]
+        if any(not name for name in parameter_names):
             raise ValueError("Model parameter names must not be blank.")
         if len(parameter_names) != len(set(parameter_names)):
             raise ValueError("Model training spec contains duplicate parameter names.")
