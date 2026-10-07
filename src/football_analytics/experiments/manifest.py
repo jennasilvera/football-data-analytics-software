@@ -96,6 +96,9 @@ class ExperimentManifest:
         fold_count = len(self.fold_ids)
         if fold_count == 0:
             raise ValueError("Experiment manifest requires at least one fold.")
+        if len(set(self.fold_ids)) != fold_count:
+            raise ValueError("Experiment fold_ids must be unique.")
+
         linked_fold_sequences = (
             self.training_run_ids,
             self.model_ids,
@@ -106,8 +109,22 @@ class ExperimentManifest:
             raise ValueError(
                 "Fold-linked experiment identifiers must have equal lengths."
             )
+        if any(
+            not value.strip()
+            for values in (self.fold_ids, *linked_fold_sequences)
+            for value in values
+        ):
+            raise ValueError(
+                "Fold-linked experiment identifiers must not be blank."
+            )
 
         has_calibration = self.calibration_report_id is not None
+        if (
+            self.calibration_report_id is not None
+            and not self.calibration_report_id.strip()
+        ):
+            raise ValueError("calibration_report_id must not be blank.")
+
         calibration_fields = (
             self.calibration_n_bins,
             self.macro_expected_calibration_error,
