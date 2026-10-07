@@ -15,6 +15,7 @@ class TemporalFoldSkipReason(StrEnum):
     """Reason a requested temporal fold could not be evaluated."""
 
     INSUFFICIENT_TRAINING_EXAMPLES = "insufficient_training_examples"
+    INSUFFICIENT_AVAILABLE_TARGETS = "insufficient_available_targets"
     EMPTY_EVALUATION_WINDOW = "empty_evaluation_window"
 
 
@@ -101,6 +102,10 @@ class TemporalBacktestFold:
 
         if any(example.prediction_time >= cutoff for example in self.train):
             raise ValueError("Training examples must be strictly before cutoff.")
+        if any(example.target_available_at > cutoff for example in self.train):
+            raise ValueError(
+                "Training targets must be available no later than the fold cutoff."
+            )
         if training_start is not None and any(
             example.prediction_time < training_start for example in self.train
         ):
@@ -127,9 +132,15 @@ class SkippedTemporalFold:
     reason: TemporalFoldSkipReason
     train_count: int
     test_count: int
+    unavailable_target_count: int = 0
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "cutoff", ensure_utc(self.cutoff, "cutoff"))
+
+        if self.train_count < 0 or self.test_count < 0:
+            raise ValueError("Skipped-fold counts cannot be negative.")
+        if self.unavailable_target_count < 0:
+            raise ValueError("unavailable_target_count cannot be negative.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +150,7 @@ class TemporalFoldBuildReport:
     policy_id: str
     source_feature_set_id: str
     source_cutoff_policy_id: str
+    source_result_eligibility_policy_id: str
     folds: tuple[TemporalBacktestFold, ...]
     skipped: tuple[SkippedTemporalFold, ...]
 
@@ -146,6 +158,7 @@ class TemporalFoldBuildReport:
         policy_id = self.policy_id.strip()
         feature_set_id = self.source_feature_set_id.strip()
         cutoff_policy_id = self.source_cutoff_policy_id.strip()
+        result_policy_id = self.source_result_eligibility_policy_id.strip()
 
         if not policy_id:
             raise ValueError("policy_id must not be blank.")
@@ -153,10 +166,17 @@ class TemporalFoldBuildReport:
             raise ValueError("source_feature_set_id must not be blank.")
         if not cutoff_policy_id:
             raise ValueError("source_cutoff_policy_id must not be blank.")
+        if not result_policy_id:
+            raise ValueError("source_result_eligibility_policy_id must not be blank.")
 
         object.__setattr__(self, "policy_id", policy_id)
         object.__setattr__(self, "source_feature_set_id", feature_set_id)
         object.__setattr__(self, "source_cutoff_policy_id", cutoff_policy_id)
+        object.__setattr__(
+            self,
+            "source_result_eligibility_policy_id",
+            result_policy_id,
+        )
 
     @property
     def requested_fold_count(self) -> int:
@@ -224,7 +244,7 @@ def _build_folds(
             else None
         )
 
-        train = tuple(
+        training_candidates = tuple(
             example
             for example in examples
             if example.prediction_time < cutoff
@@ -233,6 +253,13 @@ def _build_folds(
                 or example.prediction_time >= training_start
             )
         )
+        train = tuple(
+            example
+            for example in training_candidates
+            if example.target_available_at <= cutoff
+        )
+        unavailable_target_count = len(training_candidates) - len(train)
+
         test = tuple(
             example
             for example in examples
@@ -241,13 +268,21 @@ def _build_folds(
         fold_id = f"{policy_id}:{cutoff.isoformat()}"
 
         if len(train) < min_train_examples:
+            reason = TemporalFoldSkipReason.INSUFFICIENT_TRAINING_EXAMPLES
+            if (
+                len(training_candidates) >= min_train_examples
+                and unavailable_target_count > 0
+            ):
+                reason = TemporalFoldSkipReason.INSUFFICIENT_AVAILABLE_TARGETS
+
             skipped.append(
                 SkippedTemporalFold(
                     fold_id=fold_id,
                     cutoff=cutoff,
-                    reason=TemporalFoldSkipReason.INSUFFICIENT_TRAINING_EXAMPLES,
+                    reason=reason,
                     train_count=len(train),
                     test_count=len(test),
+                    unavailable_target_count=unavailable_target_count,
                 )
             )
             continue
@@ -260,6 +295,7 @@ def _build_folds(
                     reason=TemporalFoldSkipReason.EMPTY_EVALUATION_WINDOW,
                     train_count=len(train),
                     test_count=0,
+                    unavailable_target_count=unavailable_target_count,
                 )
             )
             continue
@@ -279,6 +315,7 @@ def _build_folds(
         policy_id=policy_id,
         source_feature_set_id=dataset.feature_set_id,
         source_cutoff_policy_id=dataset.cutoff_policy_id,
+        source_result_eligibility_policy_id=dataset.result_eligibility_policy_id,
         folds=tuple(folds),
         skipped=tuple(skipped),
     )
