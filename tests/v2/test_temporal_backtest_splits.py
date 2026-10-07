@@ -22,7 +22,6 @@ from football_analytics.features import (
     feature_set_id_for_definitions,
 )
 
-
 DEFINITION = FeatureDefinition(
     name="test.feature",
     version="v1",
