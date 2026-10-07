@@ -134,11 +134,29 @@ class SkippedTemporalFold:
 
 @dataclass(frozen=True, slots=True)
 class TemporalFoldBuildReport:
-    """Valid and skipped temporal folds for one declared policy."""
+    """Valid and skipped temporal folds tied to one historical dataset contract."""
 
     policy_id: str
+    source_feature_set_id: str
+    source_cutoff_policy_id: str
     folds: tuple[TemporalBacktestFold, ...]
     skipped: tuple[SkippedTemporalFold, ...]
+
+    def __post_init__(self) -> None:
+        policy_id = self.policy_id.strip()
+        feature_set_id = self.source_feature_set_id.strip()
+        cutoff_policy_id = self.source_cutoff_policy_id.strip()
+
+        if not policy_id:
+            raise ValueError("policy_id must not be blank.")
+        if not feature_set_id:
+            raise ValueError("source_feature_set_id must not be blank.")
+        if not cutoff_policy_id:
+            raise ValueError("source_cutoff_policy_id must not be blank.")
+
+        object.__setattr__(self, "policy_id", policy_id)
+        object.__setattr__(self, "source_feature_set_id", feature_set_id)
+        object.__setattr__(self, "source_cutoff_policy_id", cutoff_policy_id)
 
     @property
     def requested_fold_count(self) -> int:
@@ -259,6 +277,8 @@ def _build_folds(
 
     return TemporalFoldBuildReport(
         policy_id=policy_id,
+        source_feature_set_id=dataset.feature_set_id,
+        source_cutoff_policy_id=dataset.cutoff_policy_id,
         folds=tuple(folds),
         skipped=tuple(skipped),
     )
