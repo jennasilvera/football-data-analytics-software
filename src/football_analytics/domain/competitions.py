@@ -6,6 +6,16 @@ from enum import StrEnum
 from football_analytics.domain.teams import Confederation
 
 
+class CompetitionStage(StrEnum):
+    """Generic stage categories for senior international competitions."""
+
+    GROUP_OR_LEAGUE = "group_or_league"
+    KNOCKOUT = "knockout"
+    PLAYOFF = "playoff"
+    FINAL = "final"
+    OTHER = "other"
+
+
 class CompetitionKind(StrEnum):
     """Competition categories supported by the platform's formal scope."""
 
