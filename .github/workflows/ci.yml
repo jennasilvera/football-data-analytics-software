@@ -1,4 +1,4 @@
-name: World Cup Forecasting CI
+name: Football Data Analytics CI
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
       - name: Run tests
         run: pytest
 
-      - name: Run sample forecasting pipeline
+      - name: Run legacy sample forecasting pipeline
         run: |
           python -m wc_forecast health
           python -m wc_forecast ingest-results data/sample/historical_results_sample.csv
