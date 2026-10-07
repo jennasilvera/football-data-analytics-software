@@ -1,6 +1,7 @@
 """Canonical football domain types."""
 
 from football_analytics.domain.competitions import Competition, CompetitionKind
+from football_analytics.domain.locations import GeographicPoint, Venue
 from football_analytics.domain.matches import (
     Match,
     MatchOutcome,
@@ -13,9 +14,11 @@ __all__ = [
     "Competition",
     "CompetitionKind",
     "Confederation",
+    "GeographicPoint",
     "Match",
     "MatchOutcome",
     "MatchStatus",
     "MatchTimePrecision",
     "Team",
+    "Venue",
 ]
