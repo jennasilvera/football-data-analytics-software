@@ -1,15 +1,15 @@
 """Versioned point-in-time feature contracts and providers."""
 
-from football_analytics.features.availability import (
-    PlayerAvailabilityObservation,
-    PlayerAvailabilityStatus,
-    SquadAvailabilityFeatureProvider,
-)
 from football_analytics.features.artifacts import (
     FeatureVectorArtifact,
     build_feature_vector_artifact,
     load_feature_vector_artifact,
     save_feature_vector_artifact,
+)
+from football_analytics.features.availability import (
+    PlayerAvailabilityObservation,
+    PlayerAvailabilityStatus,
+    SquadAvailabilityFeatureProvider,
 )
 from football_analytics.features.base import (
     FeatureDefinition,
