@@ -18,7 +18,6 @@ from football_analytics.features import (
     materialize_feature_vector,
 )
 
-
 OBSERVED = FeatureDefinition(
     name="example.observed",
     version="v1",
