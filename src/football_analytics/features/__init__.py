@@ -41,6 +41,11 @@ from football_analytics.features.materialization import (
 )
 from football_analytics.features.rating import LegacyEloFeatureProvider
 from football_analytics.features.schedule import ScheduleRestFeatureProvider
+from football_analytics.features.travel import (
+    TeamReferenceLocationObservation,
+    TravelContextFeatureProvider,
+    VenueLocationObservation,
+)
 
 __all__ = [
     "AppliedImputation",
@@ -67,6 +72,9 @@ __all__ = [
     "PredictionCutoffPolicy",
     "RollingFormFeatureProvider",
     "ScheduleRestFeatureProvider",
+    "TeamReferenceLocationObservation",
+    "TravelContextFeatureProvider",
+    "VenueLocationObservation",
     "build_feature_vector",
     "build_feature_vector_artifact",
     "build_historical_feature_dataset",
