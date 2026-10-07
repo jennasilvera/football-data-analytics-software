@@ -103,8 +103,6 @@ def _fold_report() -> TemporalFoldBuildReport:
 def test_temporal_backtest_fits_each_fold_and_aggregates_predictions() -> None:
     result = run_temporal_backtest(
         fold_report=_fold_report(),
-        feature_set_id=FEATURE_SET_ID,
-        cutoff_policy_id="historical_cutoff_v1",
         imputation_policy=IMPUTATION_POLICY,
         model_spec=logistic_regression_spec(max_iter=500),
         trainer=train_sklearn_model,
