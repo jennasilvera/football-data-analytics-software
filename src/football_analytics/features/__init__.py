@@ -11,7 +11,13 @@ from football_analytics.features.base import (
     PredictionContext,
     build_feature_vector,
 )
+from football_analytics.features.fifa_ranking import (
+    FifaRankingFeatureProvider,
+    FifaRankingObservation,
+)
+from football_analytics.features.form import RollingFormFeatureProvider
 from football_analytics.features.rating import LegacyEloFeatureProvider
+from football_analytics.features.schedule import ScheduleRestFeatureProvider
 
 __all__ = [
     "FeatureDefinition",
@@ -21,7 +27,11 @@ __all__ = [
     "FeatureStatus",
     "FeatureValue",
     "FeatureVector",
+    "FifaRankingFeatureProvider",
+    "FifaRankingObservation",
     "LegacyEloFeatureProvider",
     "PredictionContext",
+    "RollingFormFeatureProvider",
+    "ScheduleRestFeatureProvider",
     "build_feature_vector",
 ]
