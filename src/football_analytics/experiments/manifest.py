@@ -44,6 +44,42 @@ class ExperimentManifest:
     def __post_init__(self) -> None:
         if self.schema_version != EXPERIMENT_MANIFEST_SCHEMA_VERSION:
             raise ValueError("Unsupported experiment manifest schema version.")
+
+        required_ids = {
+            "backtest_run_id": self.backtest_run_id,
+            "model_spec_id": self.model_spec_id,
+            "model_family": self.model_family,
+            "model_version": self.model_version,
+            "split_policy_id": self.split_policy_id,
+            "feature_set_id": self.feature_set_id,
+            "cutoff_policy_id": self.cutoff_policy_id,
+            "result_eligibility_policy_id": self.result_eligibility_policy_id,
+            "imputation_policy_id": self.imputation_policy_id,
+        }
+        for field_name, value in required_ids.items():
+            if not value.strip():
+                raise ValueError(f"{field_name} must not be blank.")
+
+        if self.model_random_seed < 0:
+            raise ValueError("model_random_seed must be non-negative.")
+
+        parameter_names = [name.strip() for name, _ in self.model_parameters]
+        if any(not name for name in parameter_names):
+            raise ValueError("Model parameter names must not be blank.")
+        if len(parameter_names) != len(set(parameter_names)):
+            raise ValueError("Model parameter names must be unique.")
+
+        canonical_parameters = tuple(
+            sorted(
+                (
+                    (name.strip(), value)
+                    for name, value in self.model_parameters
+                ),
+                key=lambda item: item[0],
+            )
+        )
+        object.__setattr__(self, "model_parameters", canonical_parameters)
+
         if self.prediction_count <= 0:
             raise ValueError("prediction_count must be positive.")
         if self.aggregate_metrics.n_predictions != self.prediction_count:
@@ -74,6 +110,15 @@ class ExperimentManifest:
             raise ValueError(
                 "Calibration metadata must be entirely present or entirely absent."
             )
+        if self.calibration_n_bins is not None and self.calibration_n_bins <= 0:
+            raise ValueError("calibration_n_bins must be positive.")
+        if (
+            self.macro_expected_calibration_error is not None
+            and self.macro_expected_calibration_error < 0.0
+        ):
+            raise ValueError(
+                "macro_expected_calibration_error must be non-negative."
+            )
 
         if self.code_revision is not None:
             code_revision = self.code_revision.strip()
@@ -91,7 +136,6 @@ class ExperimentManifest:
         """Return a JSON-safe canonical manifest representation."""
 
         return {
-            "schema_version": self.schema_version,
             "experiment_id": self.experiment_id,
             **self._identity_payload(),
         }
@@ -166,6 +210,7 @@ class ExperimentManifest:
 
     def _identity_payload(self) -> dict[str, Any]:
         return _identity_payload(
+            schema_version=self.schema_version,
             backtest_run_id=self.backtest_run_id,
             calibration_report_id=self.calibration_report_id,
             model_spec_id=self.model_spec_id,
@@ -223,6 +268,7 @@ def build_experiment_manifest(
     )
 
     identity = _identity_payload(
+        schema_version=EXPERIMENT_MANIFEST_SCHEMA_VERSION,
         backtest_run_id=backtest.backtest_run_id,
         calibration_report_id=calibration_report_id,
         model_spec_id=backtest.model_spec_id,
@@ -276,6 +322,7 @@ def build_experiment_manifest(
 
 def _identity_payload(
     *,
+    schema_version: int,
     backtest_run_id: str,
     calibration_report_id: str | None,
     model_spec_id: str,
@@ -300,6 +347,7 @@ def _identity_payload(
     code_revision: str | None,
 ) -> dict[str, Any]:
     return {
+        "schema_version": schema_version,
         "backtest_run_id": backtest_run_id,
         "calibration_report_id": calibration_report_id,
         "model_spec_id": model_spec_id,
