@@ -19,6 +19,7 @@ from football_analytics.data.contracts import ensure_utc
 from football_analytics.domain import Match
 from football_analytics.domain.scores import REGULATION_TARGET_POLICY_ID, ScoreBasis
 from football_analytics.evaluation import ExpandingWindowPolicy, RollingWindowPolicy
+from football_analytics.evaluation.diagnostics import build_evaluation_diagnostics
 from football_analytics.experiments import JsonExperimentRegistry
 from football_analytics.models import hist_gradient_boosting_spec, logistic_regression_spec
 from football_analytics.models.artifacts import (
@@ -29,6 +30,7 @@ from football_analytics.models.artifacts import (
 from football_analytics.models.frequency import class_frequency_spec
 from football_analytics.models.poisson import poisson_spec
 from football_analytics.reports.comparison import render_model_comparison
+from football_analytics.reports.diagnostics import render_evaluation_diagnostics
 from football_analytics.services.nested_research import NestedHoldoutPolicy, run_nested_research
 from football_analytics.services.research import (
     ResearchInputError,
@@ -98,6 +100,7 @@ def main(argv: list[str] | None = None) -> None:
     research.add_argument("--postprocess-days", type=int,
                           help="Fit nested probability transforms; requires --model all")
     research.add_argument("--min-postprocess", type=int, default=30)
+    research.add_argument("--min-diagnostic-sample", type=int, default=30)
     research.add_argument("--code-revision")
     research.add_argument("--legal-use-notes")
     research.add_argument("--output", type=Path, default=Path("outputs/v2-research"))
@@ -224,8 +227,11 @@ def main(argv: list[str] | None = None) -> None:
                 ),
             )
         result = runs[0]
+        diagnostics = tuple(build_evaluation_diagnostics(
+            run.backtest, run.normalization.normalized, min_sample=args.min_diagnostic_sample
+        ) for run in runs)
         payload: dict[str, object] = {
-            "schema_version": 4,
+            "schema_version": 5,
             "target_policy_id": REGULATION_TARGET_POLICY_ID,
             "source_sha256": source_sha256,
             "source_id": args.source_id,
@@ -255,6 +261,7 @@ def main(argv: list[str] | None = None) -> None:
             }
             for run in runs
         ]
+        payload["diagnostics"] = [asdict(report) for report in diagnostics]
         payload["nested_holdout"] = (
             {"holdout_days": args.postprocess_days, "min_examples": args.min_postprocess,
              "folds": [audit.to_dict() for audit in nested.audits]}
@@ -262,6 +269,10 @@ def main(argv: list[str] | None = None) -> None:
         )
         payload["comparison"] = asdict(comparison) if comparison is not None else None
         report_path = _save_report(payload, args.output)
+        diagnostics_path = publish_immutable(
+            report_path.with_suffix(".diagnostics.md"),
+            render_evaluation_diagnostics(diagnostics).encode(),
+        )
         model_paths = [
             str(save_poisson_model(model, args.output / "models"))
             for run in runs
@@ -293,6 +304,7 @@ def main(argv: list[str] | None = None) -> None:
                 "manifest": str(manifest_path),
                 "metrics": asdict(result.backtest.aggregate_metrics),
                 "model_artifacts": model_paths,
+                "diagnostics_report": str(diagnostics_path),
                 "comparison_report": str(comparison_path) if comparison_path else None,
             },
             indent=2,

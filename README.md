@@ -82,6 +82,7 @@ The integrated foundation currently includes:
 - Competition, squad availability, travel, and market snapshot feature providers
 - Native class-frequency, logistic, histogram gradient boosting, and Poisson models
 - Paired model comparison with identical training and evaluation samples
+- Competition/team/venue/year diagnostics and auditable per-match forecast losses
 - Nested temporal temperature scaling and learned convex probability ensembles
 - Explicit regulation-time score targets; unknown, extra-time and shootout scores fail closed
 - Portable Poisson model artifacts and scoreline forecast replay
@@ -472,3 +473,6 @@ Source provenance and legal-use notes should be stored alongside ingestion defin
 Native calibrated/ensemble research: `make demo-v2-nested`. See
 [temporal postprocessing](docs/temporal_postprocessing.md) for fitting chronology,
 artifact replay and limitations.
+
+Every native research run also writes [evaluation diagnostics](docs/evaluation_diagnostics.md),
+including sample counts, slice metrics and the largest match losses.

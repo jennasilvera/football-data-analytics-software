@@ -110,7 +110,7 @@ Metrics are recomputed from predictions and differences are descriptive; there i
 no automatic winner promotion or statistical significance claim. The JSON report
 contains all runs and the Markdown report contains the paired score table.
 
-Research report schema 4 declares `target_policy_id` and retains `runs` and `comparison`. The existing top-level
+Research report schema 5 declares `target_policy_id` and retains `runs` and `comparison`. The existing top-level
 `backtest`, `calibration`, `manifest` and stdout `metrics` describe the first
 (reference) run. Model artifacts are listed separately in stdout. Every evaluated
 model gets an experiment manifest. Poisson score forecasts retain expected goals,

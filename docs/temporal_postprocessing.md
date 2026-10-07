@@ -78,7 +78,7 @@ an untouched final test period. There is no automatic model promotion.
 
 ## Artifacts and replay
 
-Research JSON schema 4 adds `nested_holdout` with inner backtests, exact eligible
+Research JSON schema 5 retains `nested_holdout` with inner backtests, exact eligible
 fitting samples, unavailable IDs, transform state and outer base-model bindings.
 The ordinary `runs` and comparison include all nine estimators. Each derived run
 has calibration diagnostics and its own experiment manifest. Combined model IDs
