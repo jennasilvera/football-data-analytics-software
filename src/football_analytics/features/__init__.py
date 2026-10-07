@@ -18,6 +18,11 @@ from football_analytics.features.base import (
     build_feature_vector,
     feature_set_id_for_definitions,
 )
+from football_analytics.features.fifa_ranking import (
+    FifaRankingFeatureProvider,
+    FifaRankingObservation,
+)
+from football_analytics.features.form import RollingFormFeatureProvider
 from football_analytics.features.materialization import (
     AppliedImputation,
     ConstantImputationRule,
@@ -27,6 +32,7 @@ from football_analytics.features.materialization import (
     materialize_feature_vector,
 )
 from football_analytics.features.rating import LegacyEloFeatureProvider
+from football_analytics.features.schedule import ScheduleRestFeatureProvider
 
 __all__ = [
     "AppliedImputation",
@@ -39,11 +45,15 @@ __all__ = [
     "FeatureValue",
     "FeatureVector",
     "FeatureVectorArtifact",
+    "FifaRankingFeatureProvider",
+    "FifaRankingObservation",
     "ImputationPolicy",
     "LegacyEloFeatureProvider",
     "MaterializedFeatureRow",
     "MissingFeaturePolicyError",
     "PredictionContext",
+    "RollingFormFeatureProvider",
+    "ScheduleRestFeatureProvider",
     "build_feature_vector",
     "build_feature_vector_artifact",
     "feature_set_id_for_definitions",
