@@ -65,17 +65,20 @@ class MatchObservation:
                 ensure_utc(self.kickoff_at, "kickoff_at"),
             )
 
-        scores = (self.home_score, self.away_score)
-        if (scores[0] is None) != (scores[1] is None):
+        home_score = self.home_score
+        away_score = self.away_score
+
+        if (home_score is None) != (away_score is None):
             raise ValueError("home_score and away_score must be supplied together.")
 
-        if scores[0] is not None and (scores[0] < 0 or scores[1] < 0):
-            raise ValueError("Match scores cannot be negative.")
+        if home_score is not None and away_score is not None:
+            if home_score < 0 or away_score < 0:
+                raise ValueError("Match scores cannot be negative.")
 
-        if self.status is MatchStatus.COMPLETED and scores[0] is None:
+        if self.status is MatchStatus.COMPLETED and home_score is None:
             raise ValueError("Completed matches require final scores.")
 
-        if self.status is not MatchStatus.COMPLETED and scores[0] is not None:
+        if self.status is not MatchStatus.COMPLETED and home_score is not None:
             raise ValueError("Only completed matches may contain final scores.")
 
         if self.venue_name is not None:

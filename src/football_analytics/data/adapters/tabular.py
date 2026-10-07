@@ -205,14 +205,15 @@ def _optional_aware_datetime(
     if timestamp.tzinfo is None:
         raise ValueError(f"{field_name} must include timezone information.")
 
-    return timestamp.tz_convert("UTC").to_pydatetime()
+    converted: datetime = timestamp.tz_convert("UTC").to_pydatetime()
+    return converted
 
 
 def _optional_score(value: object, field_name: str) -> int | None:
     if value is None or pd.isna(value) or str(value).strip() == "":
         return None
 
-    numeric = float(value)
+    numeric = float(str(value))
     if numeric < 0 or not numeric.is_integer():
         raise ValueError(f"{field_name} must be a non-negative whole number.")
     return int(numeric)
