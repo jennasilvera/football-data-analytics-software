@@ -5,11 +5,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from football_analytics.data import (
+    assert_pre_match_available,
     LeakageRisk,
     PointInTimeRecord,
     SourceMetadata,
     TemporalIntegrityError,
-    assert_pre_match_available,
 )
 
 

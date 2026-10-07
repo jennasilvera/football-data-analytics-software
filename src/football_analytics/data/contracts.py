@@ -3,10 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
-
 
 class LeakageRisk(StrEnum):
     """How an observation may be used by pre-match forecasting code."""
@@ -116,7 +112,7 @@ def assert_pre_match_available(
 
 
 @dataclass(frozen=True, slots=True)
-class PointInTimeRecord(Generic[T]):
+class PointInTimeRecord[T]:
     """A value coupled to the metadata needed for point-in-time evaluation."""
 
     value: T
