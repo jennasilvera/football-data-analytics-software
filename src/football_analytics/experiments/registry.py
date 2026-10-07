@@ -22,12 +22,15 @@ class ExperimentRegistry(Protocol):
 
     def put(self, manifest: ExperimentManifest) -> Path:
         """Persist a manifest idempotently and return its location."""
+        ...
 
     def get(self, experiment_id: str) -> ExperimentManifest | None:
         """Return a manifest by deterministic ID."""
+        ...
 
     def list_ids(self) -> tuple[str, ...]:
         """Return stored experiment IDs in stable order."""
+        ...
 
 
 @dataclass(slots=True)
