@@ -30,6 +30,19 @@ test:
 
 check: lint test
 
+.PHONY: demo-v2
+demo-v2:
+	$(PYTHON) -m football_analytics research \
+		--results data/sample/v2/results.csv \
+		--teams data/sample/v2/teams.json \
+		--competitions data/sample/v2/competitions.json \
+		--source-id synthetic-v2 \
+		--ingested-at 2020-06-01T00:00:00Z \
+		--assert-senior-mens-a \
+		--cutoff 2020-03-01T00:00:00Z \
+		--cutoff 2020-04-01T00:00:00Z \
+		--evaluation-days 30 --min-train 12 --calibration-bins 5
+
 health:
 	$(PYTHON) -m wc_forecast health
 
@@ -141,4 +154,3 @@ forecast-workflow:
 		--train-cutoff-date 2026-01-01 \
 		--rating-cutoff-date 2026-06-19 \
 		--output outputs/world_cup_2026_upcoming_forecasts.csv
-

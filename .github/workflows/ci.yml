@@ -39,6 +39,9 @@ jobs:
       - name: Run tests
         run: pytest
 
+      - name: Run native V2 research pipeline
+        run: make demo-v2
+
       - name: Run legacy sample forecasting pipeline
         run: |
           python -m wc_forecast health

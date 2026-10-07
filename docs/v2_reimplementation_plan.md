@@ -9,8 +9,9 @@ football.
 
 The V2 effort is a reimplementation, not a greenfield rewrite. Existing code is
 retained when it is correct, tested, and compatible with the new contracts.
-Legacy code remains operational on `master` while migration work proceeds on
-`reimplementation/v2`.
+Legacy code remains operational on `master` while the staged V2 components are
+reconciled on `reimplementation/v2-integrated-research`. The executable research
+workflow and remaining gaps are documented in [V2 research workflow](v2_research_workflow.md).
 
 ## Baseline audited
 

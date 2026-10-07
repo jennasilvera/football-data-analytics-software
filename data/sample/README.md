@@ -8,3 +8,7 @@ For real forecasting runs, place an actual fixture schedule in `data/raw/world_c
 
     python -m wc_forecast ingest-world-cup-fixtures data/raw/world_cup_2026_fixtures.csv
 
+
+`v2/results.csv` is a wholly synthetic 48-match senior national-team test fixture.
+The accompanying reviewed demo catalogs exist solely for the native V2 smoke
+workflow (`make demo-v2`); they are not a complete production entity catalog.

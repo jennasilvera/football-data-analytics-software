@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from football_analytics.data.contracts import LeakageRisk, SourceMetadata
-from football_analytics.evaluation import OutcomeProbabilities
+from football_analytics.domain.probabilities import OutcomeProbabilities
 from football_analytics.features.base import (
     FeatureDefinition,
     FeatureLineage,

@@ -1,0 +1,11 @@
+{
+  "competitions": [
+    {
+      "competition_id": "friendly",
+      "name": "International Friendly",
+      "kind": "friendly",
+      "senior_mens_a_international": true
+    }
+  ],
+  "aliases": {}
+}

@@ -1,0 +1,21 @@
+{
+  "teams": [
+    {
+      "team_id": "ARG",
+      "name": "Argentina"
+    },
+    {
+      "team_id": "BRA",
+      "name": "Brazil"
+    },
+    {
+      "team_id": "FRA",
+      "name": "France"
+    },
+    {
+      "team_id": "GER",
+      "name": "Germany"
+    }
+  ],
+  "aliases": {}
+}
