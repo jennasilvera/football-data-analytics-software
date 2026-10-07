@@ -73,6 +73,8 @@ def normalize_match_batch(
                         "duplicate_or_reversed_fixture:"
                         f"{prior.source_match_id}",
                     ),
+                    source=observation.metadata.source,
+                    source_match_id=observation.source_match_id,
                 )
             )
             continue

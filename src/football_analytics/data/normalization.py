@@ -11,10 +11,7 @@ from football_analytics.data.entity_resolution import (
     TeamEntityResolver,
 )
 from football_analytics.data.observations import MatchObservation
-from football_analytics.data.scope import (
-    ScopeDecision,
-    assess_senior_mens_a_scope,
-)
+from football_analytics.data.scope import ScopeDecision, assess_senior_mens_a_scope
 from football_analytics.domain import Match
 
 
@@ -47,6 +44,8 @@ class CanonicalMatchRecord:
 class MatchNormalizationResult:
     decision: NormalizationDecision
     reasons: tuple[str, ...]
+    source: str
+    source_match_id: str
     record: CanonicalMatchRecord | None = None
 
 
@@ -65,13 +64,15 @@ def normalize_match_observation(
     )
 
     if scope.decision is ScopeDecision.EXCLUDE:
-        return MatchNormalizationResult(
+        return _result(
+            observation,
             decision=NormalizationDecision.EXCLUDED,
             reasons=(scope.reason,),
         )
 
     if scope.decision is ScopeDecision.REVIEW:
-        return MatchNormalizationResult(
+        return _result(
+            observation,
             decision=NormalizationDecision.QUARANTINED,
             reasons=(scope.reason,),
         )
@@ -98,7 +99,8 @@ def normalize_match_observation(
         )
 
     if unresolved_reasons:
-        return MatchNormalizationResult(
+        return _result(
+            observation,
             decision=NormalizationDecision.QUARANTINED,
             reasons=tuple(unresolved_reasons),
         )
@@ -108,7 +110,8 @@ def normalize_match_observation(
     assert competition.competition is not None
 
     if not competition.competition.senior_mens_a_international:
-        return MatchNormalizationResult(
+        return _result(
+            observation,
             decision=NormalizationDecision.EXCLUDED,
             reasons=("competition_out_of_scope",),
         )
@@ -129,22 +132,41 @@ def normalize_match_observation(
         status=observation.status,
     )
 
-    return MatchNormalizationResult(
+    record = CanonicalMatchRecord(
+        match=match,
+        metadata=observation.metadata,
+        source_match_id=observation.source_match_id,
+        source_home_team_name=observation.home_team_name,
+        source_away_team_name=observation.away_team_name,
+        source_competition_name=observation.competition_name,
+        home_score=observation.home_score,
+        away_score=observation.away_score,
+        home_resolution_method=home.matched_by,
+        away_resolution_method=away.matched_by,
+        competition_resolution_method=competition.matched_by,
+    )
+
+    return _result(
+        observation,
         decision=NormalizationDecision.NORMALIZED,
         reasons=("canonicalized",),
-        record=CanonicalMatchRecord(
-            match=match,
-            metadata=observation.metadata,
-            source_match_id=observation.source_match_id,
-            source_home_team_name=observation.home_team_name,
-            source_away_team_name=observation.away_team_name,
-            source_competition_name=observation.competition_name,
-            home_score=observation.home_score,
-            away_score=observation.away_score,
-            home_resolution_method=home.matched_by,
-            away_resolution_method=away.matched_by,
-            competition_resolution_method=competition.matched_by,
-        ),
+        record=record,
+    )
+
+
+def _result(
+    observation: MatchObservation,
+    *,
+    decision: NormalizationDecision,
+    reasons: tuple[str, ...],
+    record: CanonicalMatchRecord | None = None,
+) -> MatchNormalizationResult:
+    return MatchNormalizationResult(
+        decision=decision,
+        reasons=reasons,
+        source=observation.metadata.source,
+        source_match_id=observation.source_match_id,
+        record=record,
     )
 
 
