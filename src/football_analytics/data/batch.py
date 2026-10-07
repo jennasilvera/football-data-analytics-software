@@ -58,9 +58,13 @@ def normalize_match_batch(
 
         assert result.record is not None
         record = result.record
+        team_ids = sorted(
+            [record.match.home_team_id, record.match.away_team_id]
+        )
+        team_pair = (team_ids[0], team_ids[1])
         identity = (
             record.match.match_date.isoformat(),
-            tuple(sorted([record.match.home_team_id, record.match.away_team_id])),
+            team_pair,
             record.match.competition_id,
         )
 

@@ -5,7 +5,10 @@ from pathlib import Path
 import pandas as pd
 
 from football_analytics.data.batch import BatchNormalizationReport
-from football_analytics.data.normalization import CanonicalMatchRecord
+from football_analytics.data.normalization import (
+    CanonicalMatchRecord,
+    MatchNormalizationResult,
+)
 
 NORMALIZED_COLUMNS = [
     "match_id",
@@ -115,7 +118,9 @@ def _normalized_row(record: CanonicalMatchRecord) -> dict[str, object]:
     }
 
 
-def _disposition_row(result: object) -> dict[str, object]:
+def _disposition_row(
+    result: MatchNormalizationResult,
+) -> dict[str, object]:
     return {
         "source": result.source,
         "source_match_id": result.source_match_id,

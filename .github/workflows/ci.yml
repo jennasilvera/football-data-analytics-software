@@ -33,6 +33,9 @@ jobs:
       - name: Run Ruff linting
         run: ruff check .
 
+      - name: Run V2 static type checks
+        run: mypy src/football_analytics
+
       - name: Run tests
         run: pytest
 
