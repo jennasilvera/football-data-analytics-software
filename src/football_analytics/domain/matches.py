@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 
 
@@ -14,6 +14,13 @@ class MatchStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class MatchTimePrecision(StrEnum):
+    """Temporal precision available for a canonical match."""
+
+    DATE_ONLY = "date_only"
+    EXACT_KICKOFF = "exact_kickoff"
+
+
 def _utc_datetime(value: datetime, field_name: str) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{field_name} must be timezone-aware.")
@@ -23,14 +30,20 @@ def _utc_datetime(value: datetime, field_name: str) -> datetime:
 
 @dataclass(frozen=True, slots=True)
 class Match:
-    """Canonical senior men's A-international fixture or result."""
+    """Canonical senior men's A-international fixture or result.
+
+    Historical sources often provide only a match date.  Exact kickoff time is
+    therefore optional and its absence is represented explicitly rather than by
+    inventing a midnight timestamp.
+    """
 
     match_id: str
-    kickoff_at: datetime
+    match_date: date
     home_team_id: str
     away_team_id: str
     competition_id: str
     neutral: bool
+    kickoff_at: datetime | None = None
     status: MatchStatus = MatchStatus.SCHEDULED
     venue_id: str | None = None
 
@@ -52,16 +65,30 @@ class Match:
         if not competition_id:
             raise ValueError("competition_id must not be blank.")
 
+        if not isinstance(self.match_date, date):
+            raise TypeError("match_date must be a datetime.date.")
+
         object.__setattr__(self, "match_id", match_id)
         object.__setattr__(self, "home_team_id", home_team_id)
         object.__setattr__(self, "away_team_id", away_team_id)
         object.__setattr__(self, "competition_id", competition_id)
-        object.__setattr__(
-            self,
-            "kickoff_at",
-            _utc_datetime(self.kickoff_at, "kickoff_at"),
-        )
+
+        if self.kickoff_at is not None:
+            object.__setattr__(
+                self,
+                "kickoff_at",
+                _utc_datetime(self.kickoff_at, "kickoff_at"),
+            )
 
         if self.venue_id is not None:
             venue_id = self.venue_id.strip()
             object.__setattr__(self, "venue_id", venue_id or None)
+
+    @property
+    def time_precision(self) -> MatchTimePrecision:
+        """Return the temporal precision actually supported by source data."""
+
+        if self.kickoff_at is None:
+            return MatchTimePrecision.DATE_ONLY
+
+        return MatchTimePrecision.EXACT_KICKOFF

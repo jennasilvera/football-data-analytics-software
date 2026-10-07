@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -19,10 +19,12 @@ from football_analytics.domain import (
     Competition,
     CompetitionKind,
     MatchStatus,
+    MatchTimePrecision,
     Team,
 )
 
 
+MATCH_DATE = date(2026, 11, 14)
 KICKOFF = datetime(2026, 11, 14, 20, 0, tzinfo=UTC)
 
 
@@ -71,6 +73,7 @@ def _observation(
 ) -> MatchObservation:
     return MatchObservation(
         source_match_id="feed-123",
+        match_date=MATCH_DATE,
         kickoff_at=KICKOFF,
         home_team_name="Argentina",
         away_team_name=away_team_name,
@@ -96,16 +99,18 @@ def test_match_normalization_resolves_canonical_entities_and_preserves_lineage()
     assert result.record.match.home_team_id == "ARG"
     assert result.record.match.away_team_id == "BRA"
     assert result.record.match.competition_id == "friendly"
+    assert result.record.match.time_precision is MatchTimePrecision.EXACT_KICKOFF
     assert result.record.away_resolution_method == "alias"
     assert result.record.source_match_id == "feed-123"
     assert result.record.metadata.source == "fixture_feed"
 
 
-def test_match_id_is_independent_of_source_record_id() -> None:
+def test_match_id_is_independent_of_source_record_id_and_kickoff_precision() -> None:
     first = _observation()
     second = MatchObservation(
         source_match_id="different-provider-id",
-        kickoff_at=first.kickoff_at,
+        match_date=first.match_date,
+        kickoff_at=None,
         home_team_name=first.home_team_name,
         away_team_name=first.away_team_name,
         competition_name=first.competition_name,
@@ -135,6 +140,7 @@ def test_match_id_is_independent_of_source_record_id() -> None:
     assert first_result.record is not None
     assert second_result.record is not None
     assert first_result.record.match.match_id == second_result.record.match.match_id
+    assert second_result.record.match.time_precision is MatchTimePrecision.DATE_ONLY
 
 
 def test_unresolved_team_is_quarantined_instead_of_receiving_fallback_identity() -> None:
@@ -189,6 +195,7 @@ def test_completed_observation_requires_scores() -> None:
     with pytest.raises(ValueError, match="require final scores"):
         MatchObservation(
             source_match_id="feed-123",
+            match_date=MATCH_DATE,
             kickoff_at=KICKOFF,
             home_team_name="Argentina",
             away_team_name="Brazil",
@@ -200,3 +207,37 @@ def test_completed_observation_requires_scores() -> None:
             official=True,
             metadata=_metadata(),
         )
+
+
+def test_completed_historical_observation_can_be_date_only() -> None:
+    observation = MatchObservation(
+        source_match_id="history-1",
+        match_date=date(2001, 9, 5),
+        kickoff_at=None,
+        home_team_name="Argentina",
+        away_team_name="Brazil",
+        competition_name="Friendly",
+        neutral=False,
+        status=MatchStatus.COMPLETED,
+        gender=GenderCategory.MEN,
+        team_level=TeamLevel.SENIOR_A,
+        official=True,
+        metadata=SourceMetadata(
+            source="historical_results",
+            available_at=datetime(2001, 9, 6, tzinfo=UTC),
+            ingested_at=datetime(2026, 10, 7, tzinfo=UTC),
+            leakage_risk=LeakageRisk.POST_MATCH_ONLY,
+        ),
+        home_score=2,
+        away_score=1,
+    )
+
+    result = normalize_match_observation(
+        observation,
+        team_resolver=_team_resolver(),
+        competition_resolver=_competition_resolver(),
+    )
+
+    assert result.record is not None
+    assert result.record.match.kickoff_at is None
+    assert result.record.match.time_precision is MatchTimePrecision.DATE_ONLY

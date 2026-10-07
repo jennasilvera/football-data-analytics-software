@@ -115,11 +115,12 @@ def normalize_match_observation(
 
     match = Match(
         match_id=build_canonical_match_id(
-            kickoff_at=observation.kickoff_at.isoformat(),
+            match_date=observation.match_date.isoformat(),
             home_team_id=home.team.team_id,
             away_team_id=away.team.team_id,
             competition_id=competition.competition.competition_id,
         ),
+        match_date=observation.match_date,
         kickoff_at=observation.kickoff_at,
         home_team_id=home.team.team_id,
         away_team_id=away.team.team_id,
@@ -149,16 +150,21 @@ def normalize_match_observation(
 
 def build_canonical_match_id(
     *,
-    kickoff_at: str,
+    match_date: str,
     home_team_id: str,
     away_team_id: str,
     competition_id: str,
 ) -> str:
-    """Build a deterministic ID from canonical match identity fields."""
+    """Build a deterministic cross-source match identity.
+
+    Exact kickoff is intentionally excluded because one provider may supply a
+    timestamp while another provider supplies date-only history for the same
+    match. Same-day collisions are detected at batch-ingestion boundaries.
+    """
 
     key = "|".join(
         [
-            kickoff_at.strip(),
+            match_date.strip(),
             home_team_id.strip(),
             away_team_id.strip(),
             competition_id.strip(),

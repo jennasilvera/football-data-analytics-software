@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 
 from football_analytics.data.contracts import SourceMetadata, ensure_utc
 from football_analytics.data.scope import GenderCategory, TeamLevel
@@ -10,10 +10,14 @@ from football_analytics.domain import MatchStatus
 
 @dataclass(frozen=True, slots=True)
 class MatchObservation:
-    """Source-level fixture/result observation before canonical entity resolution."""
+    """Source-level fixture/result observation before canonical entity resolution.
+
+    `match_date` is always required. `kickoff_at` is optional because many
+    historical result sources do not provide an exact kickoff timestamp.
+    """
 
     source_match_id: str
-    kickoff_at: datetime
+    match_date: date
     home_team_name: str
     away_team_name: str
     competition_name: str
@@ -23,6 +27,7 @@ class MatchObservation:
     team_level: TeamLevel
     official: bool | None
     metadata: SourceMetadata
+    kickoff_at: datetime | None = None
     home_score: int | None = None
     away_score: int | None = None
     venue_name: str | None = None
@@ -35,6 +40,9 @@ class MatchObservation:
 
         if not source_match_id:
             raise ValueError("source_match_id must not be blank.")
+
+        if not isinstance(self.match_date, date):
+            raise TypeError("match_date must be a datetime.date.")
 
         if not home_team_name or not away_team_name:
             raise ValueError("Source team names must not be blank.")
@@ -49,11 +57,13 @@ class MatchObservation:
         object.__setattr__(self, "home_team_name", home_team_name)
         object.__setattr__(self, "away_team_name", away_team_name)
         object.__setattr__(self, "competition_name", competition_name)
-        object.__setattr__(
-            self,
-            "kickoff_at",
-            ensure_utc(self.kickoff_at, "kickoff_at"),
-        )
+
+        if self.kickoff_at is not None:
+            object.__setattr__(
+                self,
+                "kickoff_at",
+                ensure_utc(self.kickoff_at, "kickoff_at"),
+            )
 
         scores = (self.home_score, self.away_score)
         if (scores[0] is None) != (scores[1] is None):
