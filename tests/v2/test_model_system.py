@@ -14,6 +14,7 @@ from football_analytics.features import (
     HistoricalFeatureDataset,
     HistoricalFeatureExample,
     ImputationPolicy,
+    ResultEligibilityBasis,
     feature_set_id_for_definitions,
 )
 from football_analytics.models import (
@@ -79,6 +80,10 @@ def _example(
         match_id=match_id,
         source_match_id=f"source-{match_id}",
         prediction_time=prediction_time,
+        target_available_at=prediction_time + timedelta(hours=6),
+        target_availability_basis=(
+            ResultEligibilityBasis.CONSERVATIVE_NEXT_UTC_DAY
+        ),
         target=target,
         vector=vector,
     )
@@ -104,6 +109,7 @@ def _historical_dataset(
     return HistoricalFeatureDataset(
         feature_set_id=FEATURE_SET_ID,
         cutoff_policy_id="test_cutoff_v1",
+        result_eligibility_policy_id="test_result_eligibility_v1",
         examples=examples or _examples(),
     )
 
@@ -146,6 +152,28 @@ def test_model_dataset_identity_changes_with_feature_values() -> None:
     assert baseline.dataset_id != changed.dataset_id
 
 
+
+def test_model_dataset_identity_changes_with_target_availability() -> None:
+    baseline_examples = list(_examples())
+    changed_examples = list(_examples())
+    changed_examples[-1] = replace(
+        changed_examples[-1],
+        target_available_at=changed_examples[-1].target_available_at
+        + timedelta(hours=1),
+    )
+
+    baseline = build_model_dataset(
+        _historical_dataset(tuple(baseline_examples)),
+        imputation_policy=IMPUTATION_POLICY,
+    )
+    changed = build_model_dataset(
+        _historical_dataset(tuple(changed_examples)),
+        imputation_policy=IMPUTATION_POLICY,
+    )
+
+    assert baseline.dataset_id != changed.dataset_id
+
+
 def test_training_metadata_is_deterministic_for_spec_and_dataset() -> None:
     dataset = build_model_dataset(
         _historical_dataset(),
@@ -159,6 +187,10 @@ def test_training_metadata_is_deterministic_for_spec_and_dataset() -> None:
     assert first == second
     assert first.dataset_id == dataset.dataset_id
     assert first.feature_names == dataset.column_names
+    assert (
+        first.result_eligibility_policy_id
+        == dataset.result_eligibility_policy_id
+    )
 
 
 @pytest.mark.parametrize(
