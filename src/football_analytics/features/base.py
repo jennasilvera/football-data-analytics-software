@@ -150,6 +150,14 @@ class FeatureVector:
         if len(names) != len(set(names)):
             raise ValueError("Feature vector contains duplicate feature names.")
 
+        expected_feature_set_id = feature_set_id_for_definitions(
+            [value.definition for value in self.values]
+        )
+        if self.feature_set_id != expected_feature_set_id:
+            raise ValueError(
+                "feature_set_id does not match the vector's feature definitions."
+            )
+
 
 class FeatureProvider(Protocol):
     """Contract implemented by replaceable point-in-time feature providers."""
@@ -223,12 +231,16 @@ def build_feature_vector(
     return FeatureVector(
         match_id=context.match.match_id,
         prediction_time=context.prediction_time,
-        feature_set_id=_feature_set_id(definitions),
+        feature_set_id=feature_set_id_for_definitions(definitions),
         values=ordered_values,
     )
 
 
-def _feature_set_id(definitions: Sequence[FeatureDefinition]) -> str:
+def feature_set_id_for_definitions(
+    definitions: Sequence[FeatureDefinition],
+) -> str:
+    """Return a deterministic ID for a collection of versioned definitions."""
+
     tokens = sorted(
         f"{definition.name}@{definition.version}"
         for definition in definitions
