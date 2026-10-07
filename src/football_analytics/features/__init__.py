@@ -18,6 +18,10 @@ from football_analytics.features.base import (
     build_feature_vector,
     feature_set_id_for_definitions,
 )
+from football_analytics.features.competition import (
+    CompetitionContextFeatureProvider,
+    MatchCompetitionContextObservation,
+)
 from football_analytics.features.dataset import (
     DEFAULT_HISTORICAL_CUTOFF_POLICY,
     HistoricalFeatureDataset,
@@ -44,6 +48,7 @@ from football_analytics.features.schedule import ScheduleRestFeatureProvider
 
 __all__ = [
     "AppliedImputation",
+    "CompetitionContextFeatureProvider",
     "ConstantImputationRule",
     "DEFAULT_HISTORICAL_CUTOFF_POLICY",
     "FeatureDefinition",
@@ -61,6 +66,7 @@ __all__ = [
     "HistoricalFeatureLeakageError",
     "ImputationPolicy",
     "LegacyEloFeatureProvider",
+    "MatchCompetitionContextObservation",
     "MaterializedFeatureRow",
     "MissingFeaturePolicyError",
     "PredictionContext",
