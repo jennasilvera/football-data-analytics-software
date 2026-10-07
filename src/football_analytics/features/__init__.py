@@ -1,5 +1,10 @@
 """Versioned point-in-time feature contracts and providers."""
 
+from football_analytics.features.availability import (
+    PlayerAvailabilityObservation,
+    PlayerAvailabilityStatus,
+    SquadAvailabilityFeatureProvider,
+)
 from football_analytics.features.artifacts import (
     FeatureVectorArtifact,
     build_feature_vector_artifact,
@@ -68,10 +73,13 @@ __all__ = [
     "LegacyEloFeatureProvider",
     "MaterializedFeatureRow",
     "MissingFeaturePolicyError",
+    "PlayerAvailabilityObservation",
+    "PlayerAvailabilityStatus",
     "PredictionContext",
     "PredictionCutoffPolicy",
     "RollingFormFeatureProvider",
     "ScheduleRestFeatureProvider",
+    "SquadAvailabilityFeatureProvider",
     "TeamReferenceLocationObservation",
     "TravelContextFeatureProvider",
     "VenueLocationObservation",
