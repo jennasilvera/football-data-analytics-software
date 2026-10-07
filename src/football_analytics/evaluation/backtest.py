@@ -137,14 +137,14 @@ def _run_fold(
     trainer: ModelTrainer,
 ) -> tuple[BacktestFoldResult, tuple[ScoredPrediction, ...]]:
     train_dataset = build_model_dataset_from_examples(
-        feature_set_id=fold_report.source_feature_set_id,
-        cutoff_policy_id=fold_report.source_cutoff_policy_id,
+        feature_set_id=feature_set_id,
+        cutoff_policy_id=cutoff_policy_id,
         examples=fold.train,
         imputation_policy=imputation_policy,
     )
     evaluation_dataset = build_model_dataset_from_examples(
-        feature_set_id=fold_report.source_feature_set_id,
-        cutoff_policy_id=fold_report.source_cutoff_policy_id,
+        feature_set_id=feature_set_id,
+        cutoff_policy_id=cutoff_policy_id,
         examples=fold.test,
         imputation_policy=imputation_policy,
     )
