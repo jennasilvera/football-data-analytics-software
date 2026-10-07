@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 from football_analytics.domain import MatchOutcome
 
-
 PROBABILITY_SUM_TOLERANCE = 1e-9
 
 
