@@ -14,7 +14,6 @@ from football_analytics.features import (
     PredictionContext,
 )
 
-
 DEFINITION = FeatureDefinition(
     name="example.feature",
     version="v1",
