@@ -14,7 +14,6 @@ from football_analytics.features.base import (
     PredictionContext,
 )
 
-
 FIFA_RANKING_FEATURE_VERSION = "fifa_ranking_v1"
 
 
