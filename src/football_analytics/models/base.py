@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, TypeAlias
 
-from football_analytics.evaluation import OutcomeProbabilities
+from football_analytics.evaluation.probabilities import OutcomeProbabilities
 from football_analytics.features import MaterializedFeatureRow
 from football_analytics.models.dataset import ModelDataset
 
