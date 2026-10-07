@@ -1,7 +1,7 @@
 # Implementation status against the product requirements
 
 This map tracks the supplied Football Data Analytics Software requirements as
-of the native scoreline/comparison milestone. A legacy implementation does not
+of the native temporal postprocessing milestone. A legacy implementation does not
 imply that the corresponding native V2 capability is complete. The intended
 scope remains official senior men's A-international football only.
 
@@ -11,8 +11,8 @@ scope remains official senior men's A-international football only.
 | Temporal integrity | Provenance, cutoff-safe features, target availability and chronological folds | Historical revisions and actual publication-time datasets |
 | Team ratings | Elo migration/parity and snapshots | Glicko-style uncertainty, rating comparison and persisted history services |
 | Features | Form, rest, rankings, competition, travel, squad availability, market snapshots | Manager/manual intelligence, opponent adjustment, coverage monitoring and persistent feature store |
-| Models | Class-frequency, logistic, histogram boosting, independent Poisson | Training-only recalibration, nested OOS ensemble, shrinkage/uncertainty research |
-| Model artifacts | Immutable portable Poisson JSON plus experiment manifests | Versioned classifier artifacts, promotion metadata and environment compatibility |
+| Models | Class-frequency, logistic, histogram boosting, independent Poisson, nested temperature scaling and convex ensemble | Shrinkage/uncertainty research; real-data calibration validation |
+| Model artifacts | Immutable portable Poisson/transform JSON plus experiment manifests | Versioned classifier artifacts, promotion metadata and environment compatibility |
 | Evaluation | Expanding/rolling backtests, log loss/Brier/RPS, calibration diagnostics, paired comparison | Competition/confederation slices, ablation, benchmark joins, interval coverage and drift |
 | Match forecasts | Poisson replay with expected goals, grid, mode, entropy and tail mass | Unified multi-model service; explanatory drivers; calibrated intervals and freshness reports |
 | Reports | Auditable research JSON, model comparison Markdown, Poisson model card | Team/competition intelligence and complete field/feature dictionary |
@@ -62,9 +62,9 @@ cutoffs, canonical IDs, training cutoff and known team histories are enforced.
 1. **Source governance.** Explicit score-basis contracts now reject unknown and
    non-regulation targets. Add revision contracts; verify real sources against scope, license and timestamp
    requirements. Test mixed score bases, late revisions and exact publication times.
-2. **Calibration and ensembles.** Add model implementations fitted only on nested
-   or held-out temporal base predictions. Persist split/calibrator/base-model
-   identities. Test that outer evaluation labels never reach calibration/weights.
+2. **Calibration validation.** Nested holdout fitting and leakage tests are implemented.
+   Validate transfer to refitted models on governed real sources, assess sample
+   requirements and subgroup reliability, and reserve an untouched final test period.
 3. **Research diagnostics.** Add evaluation slices, market benchmark joins,
    ablations and post-match errors. Report sample coverage and paired uncertainty.
 4. **Ratings and intelligence.** Add uncertainty-aware ratings, schedule-adjusted

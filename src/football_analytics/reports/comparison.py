@@ -22,7 +22,8 @@ def render_model_comparison(comparison: ModelComparison) -> str:
     for row in comparison.rows:
         metrics = row.metrics
         lines.append(
-            f"| {row.model_family} | {metrics.accuracy:.4f} | {metrics.log_loss:.4f} | "
+            f"| {row.model_spec_id or row.model_family} | "
+            f"{metrics.accuracy:.4f} | {metrics.log_loss:.4f} | "
             f"{metrics.multiclass_brier_score:.4f} | {metrics.ranked_probability_score:.4f} | "
             f"{row.log_loss_delta_vs_reference:+.4f} | {row.brier_delta_vs_reference:+.4f} | "
             f"{row.rps_delta_vs_reference:+.4f} |"
@@ -37,7 +38,8 @@ def render_model_comparison(comparison: ModelComparison) -> str:
             "Model selection needs nested temporal validation and an untouched final holdout.",
             "The Poisson model assumes independent goals and conditions probabilities on a finite",
             "score grid. Its omitted tail probability is reported for every match.",
-            "Calibration reports describe reliability; no learned recalibration is applied here.",
+            "Calibration diagnostics describe outer predictions. With nested postprocessing,",
+            "temperatures and ensemble weights are fitted only on earlier held-out results.",
             "",
             "## Run identities",
             "",

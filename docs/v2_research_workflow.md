@@ -55,9 +55,10 @@ made at the start of the evaluation window.
 
 Evaluation windows cannot overlap: pooled metrics count each forecast once.
 Skipped folds retain their reasons and counts in the report; no valid folds is
-an error. Calibration outputs are diagnostics of held-out probabilities, not a
-fitted recalibration model. Hyperparameter search and model selection require
-additional nested temporal validation.
+an error. The `calibration` field reports probability reliability diagnostics.
+Optional `--postprocess-days` also fits learned transforms using a chronological
+inner holdout, with its own audit and artifacts. Hyperparameter search and model
+selection still require additional validation and an untouched final test period.
 
 ## Outputs and reproducibility
 
@@ -109,8 +110,14 @@ Metrics are recomputed from predictions and differences are descriptive; there i
 no automatic winner promotion or statistical significance claim. The JSON report
 contains all runs and the Markdown report contains the paired score table.
 
-Research report schema 3 declares `target_policy_id` and retains `runs` and `comparison`. The existing top-level
+Research report schema 4 declares `target_policy_id` and retains `runs` and `comparison`. The existing top-level
 `backtest`, `calibration`, `manifest` and stdout `metrics` describe the first
 (reference) run. Model artifacts are listed separately in stdout. Every evaluated
 model gets an experiment manifest. Poisson score forecasts retain expected goals,
 the full grid, modal score, entropy and omitted tail probability.
+
+## Learned probability transforms
+
+`make demo-v2-nested` adds chronological inner holdout fitting to the four-model
+comparison. See [temporal postprocessing](temporal_postprocessing.md) for the
+complete fitting policy, artifacts, failure behavior and evaluation limits.
