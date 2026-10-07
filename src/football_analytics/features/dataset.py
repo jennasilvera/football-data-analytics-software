@@ -142,12 +142,17 @@ def build_historical_feature_dataset(
             records_by_match_id=records_by_match_id,
         )
 
+        home_score = record.home_score
+        away_score = record.away_score
+        assert home_score is not None
+        assert away_score is not None
+
         examples.append(
             HistoricalFeatureExample(
                 match_id=record.match.match_id,
                 source_match_id=record.source_match_id,
                 prediction_time=prediction_time,
-                target=_outcome(record.home_score, record.away_score),
+                target=_outcome(home_score, away_score),
                 vector=vector,
             )
         )
