@@ -65,7 +65,27 @@ def _save_report(payload: dict[str, object], root: Path) -> Path:
 
 
 def main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog="football-analytics")
+    import sys
+
+    from football_analytics.operations import COMMANDS
+    from football_analytics.operations import run as run_operation
+
+    supplied = list(sys.argv[1:] if argv is None else argv)
+    if supplied and supplied[0] in ("backtest", "calibrate"):
+        alias = supplied[0]
+        supplied[0] = "research"
+        if alias == "calibrate" and "--postprocess-days" not in supplied:
+            argparse.ArgumentParser(prog="football-analytics").error(
+                "calibrate requires --model all and --postprocess-days."
+            )
+        argv = supplied
+    if supplied and supplied[0] in COMMANDS:
+        run_operation(supplied)
+        return
+    parser = argparse.ArgumentParser(
+        prog="football-analytics",
+        epilog="Operational commands: " + ", ".join(sorted(COMMANDS)),
+    )
     commands = parser.add_subparsers(dest="command", required=True)
     research = commands.add_parser(
         "research", help="Run governed temporal research or compare supported models"
@@ -82,7 +102,8 @@ def main(argv: list[str] | None = None) -> None:
         help="Assert that the input source contains official senior men's A matches",
     )
     research.add_argument(
-        "--score-basis", choices=[basis.value for basis in ScoreBasis],
+        "--score-basis",
+        choices=[basis.value for basis in ScoreBasis],
         default=ScoreBasis.UNKNOWN.value,
         help="Assert source score basis when no per-row score_basis column exists",
     )
@@ -97,10 +118,20 @@ def main(argv: list[str] | None = None) -> None:
     )
     research.add_argument("--seed", type=int, default=42)
     research.add_argument("--calibration-bins", type=int, default=10)
-    research.add_argument("--postprocess-days", type=int,
-                          help="Fit nested probability transforms; requires --model all")
+    research.add_argument(
+        "--postprocess-days",
+        type=int,
+        help="Fit nested probability transforms; requires --model all",
+    )
     research.add_argument("--min-postprocess", type=int, default=30)
     research.add_argument("--min-diagnostic-sample", type=int, default=30)
+    research.add_argument("--feature-groups", help="Comma-separated declared feature families")
+    research.add_argument(
+        "--feature-context", type=Path, help="Timestamped JSON feature observations"
+    )
+    research.add_argument("--ablate", action="store_true")
+    research.add_argument("--paired-uncertainty", action="store_true")
+    research.add_argument("--market-snapshots", type=Path)
     research.add_argument("--code-revision")
     research.add_argument("--legal-use-notes")
     research.add_argument("--output", type=Path, default=Path("outputs/v2-research"))
@@ -190,26 +221,60 @@ def main(argv: list[str] | None = None) -> None:
             "hist-gradient-boosting": hist_gradient_boosting_spec(random_seed=args.seed),
             "poisson": poisson_spec(),
         }
+        feature_groups = tuple(args.feature_groups.split(",")) if args.feature_groups else None
+        feature_context = (
+            json.loads(args.feature_context.read_text()) if args.feature_context else None
+        )
         comparison = None
         nested = None
         if args.postprocess_days is not None and args.model != "all":
             raise ValueError("--postprocess-days requires --model all.")
-        if args.model == "all":
-            if args.postprocess_days is not None:
-                nested = run_nested_research(
-                    observations=observations, catalogs=catalogs, split_policy=policy,
-                    model_specs=tuple(specs.values()), calibration_bins=args.calibration_bins,
-                    code_revision=args.code_revision, nested_policy=NestedHoldoutPolicy(
-                        timedelta(days=args.postprocess_days), args.min_postprocess,
-                    ),
-                )
-            compared = nested if nested is not None else run_research_comparison(
+        if args.ablate:
+            if args.model not in ("logistic", "hist-gradient-boosting") or args.postprocess_days:
+                raise ValueError("Ablation requires a single classifier without postprocessing.")
+            from football_analytics.services.ablation import run_feature_ablation
+
+            spec = specs[args.model]
+            ablated = run_feature_ablation(
+                feature_groups=feature_groups or (),
                 observations=observations,
                 catalogs=catalogs,
                 split_policy=policy,
-                model_specs=tuple(specs.values()),
+                model_spec=spec,
+                feature_context=feature_context,
                 calibration_bins=args.calibration_bins,
                 code_revision=args.code_revision,
+            )
+            runs, comparison = ablated.runs, ablated.comparison
+        elif args.model == "all":
+            if args.postprocess_days is not None:
+                nested = run_nested_research(
+                    observations=observations,
+                    catalogs=catalogs,
+                    split_policy=policy,
+                    model_specs=tuple(specs.values()),
+                    calibration_bins=args.calibration_bins,
+                    feature_groups=feature_groups,
+                    feature_context=feature_context,
+                    code_revision=args.code_revision,
+                    nested_policy=NestedHoldoutPolicy(
+                        timedelta(days=args.postprocess_days),
+                        args.min_postprocess,
+                    ),
+                )
+            compared = (
+                nested
+                if nested is not None
+                else run_research_comparison(
+                    observations=observations,
+                    catalogs=catalogs,
+                    split_policy=policy,
+                    model_specs=tuple(specs.values()),
+                    calibration_bins=args.calibration_bins,
+                    code_revision=args.code_revision,
+                    feature_groups=feature_groups,
+                    feature_context=feature_context,
+                )
             )
             runs = compared.runs
             comparison = compared.comparison
@@ -224,12 +289,17 @@ def main(argv: list[str] | None = None) -> None:
                     model_spec=spec,
                     calibration_bins=args.calibration_bins,
                     code_revision=args.code_revision,
+                    feature_groups=feature_groups,
+                    feature_context=feature_context,
                 ),
             )
         result = runs[0]
-        diagnostics = tuple(build_evaluation_diagnostics(
-            run.backtest, run.normalization.normalized, min_sample=args.min_diagnostic_sample
-        ) for run in runs)
+        diagnostics = tuple(
+            build_evaluation_diagnostics(
+                run.backtest, run.normalization.normalized, min_sample=args.min_diagnostic_sample
+            )
+            for run in runs
+        )
         payload: dict[str, object] = {
             "schema_version": 5,
             "target_policy_id": REGULATION_TARGET_POLICY_ID,
@@ -261,11 +331,45 @@ def main(argv: list[str] | None = None) -> None:
             }
             for run in runs
         ]
+        if args.paired_uncertainty:
+            if len(runs) < 2:
+                raise ValueError("Paired uncertainty requires a model comparison or ablation.")
+            from football_analytics.evaluation.extensions import paired_block_uncertainty
+
+            payload["paired_uncertainty"] = [
+                paired_block_uncertainty(runs[0].backtest, run.backtest) for run in runs[1:]
+            ]
+        if args.market_snapshots:
+            from football_analytics.data.serialization import metadata_from_dict
+            from football_analytics.evaluation.extensions import market_benchmark
+            from football_analytics.features.market import MarketSnapshotObservation
+
+            snapshots = []
+            for item in json.loads(args.market_snapshots.read_text()):
+                body = dict(item)
+                basis = ScoreBasis(body.pop("score_basis", "unknown"))
+                body["metadata"] = metadata_from_dict(body["metadata"])
+                snapshots.append((MarketSnapshotObservation(**body), basis))
+            payload["market_benchmarks"] = [
+                market_benchmark(run.backtest, run.normalization.normalized, snapshots)
+                for run in runs
+            ]
+        if args.ablate:
+            payload["ablation"] = {
+                "removed_groups": ablated.removed_groups,
+                "backtest_run_ids": [r.backtest.backtest_run_id for r in runs],
+            }
+        payload["feature_groups"] = feature_groups
+        payload["feature_context"] = feature_context
         payload["diagnostics"] = [asdict(report) for report in diagnostics]
         payload["nested_holdout"] = (
-            {"holdout_days": args.postprocess_days, "min_examples": args.min_postprocess,
-             "folds": [audit.to_dict() for audit in nested.audits]}
-            if nested is not None else None
+            {
+                "holdout_days": args.postprocess_days,
+                "min_examples": args.min_postprocess,
+                "folds": [audit.to_dict() for audit in nested.audits],
+            }
+            if nested is not None
+            else None
         )
         payload["comparison"] = asdict(comparison) if comparison is not None else None
         report_path = _save_report(payload, args.output)
@@ -281,7 +385,8 @@ def main(argv: list[str] | None = None) -> None:
         if nested is not None:
             model_paths.extend(
                 str(save_probability_transform(model, args.output / "models"))
-                for audit in nested.audits for model in audit.transforms
+                for audit in nested.audits
+                for model in audit.transforms
             )
         for run in runs[1:]:
             JsonExperimentRegistry(args.output / "experiments").put(run.manifest)
