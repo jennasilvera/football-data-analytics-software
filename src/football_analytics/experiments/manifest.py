@@ -46,6 +46,24 @@ class ExperimentManifest:
             raise ValueError("Unsupported experiment manifest schema version.")
         if self.prediction_count <= 0:
             raise ValueError("prediction_count must be positive.")
+        if self.aggregate_metrics.n_predictions != self.prediction_count:
+            raise ValueError(
+                "Aggregate metric count must match experiment prediction_count."
+            )
+
+        fold_count = len(self.fold_ids)
+        if fold_count == 0:
+            raise ValueError("Experiment manifest requires at least one fold.")
+        linked_fold_sequences = (
+            self.training_run_ids,
+            self.model_ids,
+            self.train_dataset_ids,
+            self.evaluation_dataset_ids,
+        )
+        if any(len(values) != fold_count for values in linked_fold_sequences):
+            raise ValueError(
+                "Fold-linked experiment identifiers must have equal lengths."
+            )
 
         has_calibration = self.calibration_report_id is not None
         calibration_fields = (
@@ -76,17 +94,6 @@ class ExperimentManifest:
             "schema_version": self.schema_version,
             "experiment_id": self.experiment_id,
             **self._identity_payload(),
-            "aggregate_metrics": {
-                "n_predictions": self.aggregate_metrics.n_predictions,
-                "accuracy": self.aggregate_metrics.accuracy,
-                "log_loss": self.aggregate_metrics.log_loss,
-                "multiclass_brier_score": (
-                    self.aggregate_metrics.multiclass_brier_score
-                ),
-                "ranked_probability_score": (
-                    self.aggregate_metrics.ranked_probability_score
-                ),
-            },
         }
 
     @classmethod
@@ -94,6 +101,9 @@ class ExperimentManifest:
         """Load and validate a manifest from a JSON-compatible dictionary."""
 
         metrics_payload = payload["aggregate_metrics"]
+        if not isinstance(metrics_payload, dict):
+            raise ValueError("aggregate_metrics must be a JSON object.")
+
         metrics = EvaluationMetrics(
             n_predictions=int(metrics_payload["n_predictions"]),
             accuracy=float(metrics_payload["accuracy"]),
@@ -155,31 +165,30 @@ class ExperimentManifest:
         )
 
     def _identity_payload(self) -> dict[str, Any]:
-        return {
-            "backtest_run_id": self.backtest_run_id,
-            "calibration_report_id": self.calibration_report_id,
-            "model_spec_id": self.model_spec_id,
-            "model_family": self.model_family,
-            "model_version": self.model_version,
-            "model_random_seed": self.model_random_seed,
-            "model_parameters": [list(item) for item in self.model_parameters],
-            "split_policy_id": self.split_policy_id,
-            "feature_set_id": self.feature_set_id,
-            "cutoff_policy_id": self.cutoff_policy_id,
-            "result_eligibility_policy_id": self.result_eligibility_policy_id,
-            "imputation_policy_id": self.imputation_policy_id,
-            "prediction_count": self.prediction_count,
-            "fold_ids": list(self.fold_ids),
-            "training_run_ids": list(self.training_run_ids),
-            "model_ids": list(self.model_ids),
-            "train_dataset_ids": list(self.train_dataset_ids),
-            "evaluation_dataset_ids": list(self.evaluation_dataset_ids),
-            "calibration_n_bins": self.calibration_n_bins,
-            "macro_expected_calibration_error": (
-                self.macro_expected_calibration_error
-            ),
-            "code_revision": self.code_revision,
-        }
+        return _identity_payload(
+            backtest_run_id=self.backtest_run_id,
+            calibration_report_id=self.calibration_report_id,
+            model_spec_id=self.model_spec_id,
+            model_family=self.model_family,
+            model_version=self.model_version,
+            model_random_seed=self.model_random_seed,
+            model_parameters=self.model_parameters,
+            split_policy_id=self.split_policy_id,
+            feature_set_id=self.feature_set_id,
+            cutoff_policy_id=self.cutoff_policy_id,
+            result_eligibility_policy_id=self.result_eligibility_policy_id,
+            imputation_policy_id=self.imputation_policy_id,
+            prediction_count=self.prediction_count,
+            aggregate_metrics=self.aggregate_metrics,
+            fold_ids=self.fold_ids,
+            training_run_ids=self.training_run_ids,
+            model_ids=self.model_ids,
+            train_dataset_ids=self.train_dataset_ids,
+            evaluation_dataset_ids=self.evaluation_dataset_ids,
+            calibration_n_bins=self.calibration_n_bins,
+            macro_expected_calibration_error=self.macro_expected_calibration_error,
+            code_revision=self.code_revision,
+        )
 
 
 def build_experiment_manifest(
@@ -195,67 +204,131 @@ def build_experiment_manifest(
             "Calibration prediction count must match the backtest prediction count."
         )
 
-    identity = {
-        "backtest_run_id": backtest.backtest_run_id,
-        "calibration_report_id": (
-            calibration.report_id if calibration is not None else None
-        ),
-        "model_spec_id": backtest.model_spec_id,
-        "model_family": backtest.model_family,
-        "model_version": backtest.model_version,
-        "model_random_seed": backtest.model_random_seed,
-        "model_parameters": [list(item) for item in backtest.model_parameters],
-        "split_policy_id": backtest.split_policy_id,
-        "feature_set_id": backtest.feature_set_id,
-        "cutoff_policy_id": backtest.cutoff_policy_id,
-        "result_eligibility_policy_id": backtest.result_eligibility_policy_id,
-        "imputation_policy_id": backtest.imputation_policy_id,
-        "prediction_count": backtest.prediction_count,
-        "fold_ids": [fold.fold_id for fold in backtest.folds],
-        "training_run_ids": [fold.training_run_id for fold in backtest.folds],
-        "model_ids": [fold.model_id for fold in backtest.folds],
-        "train_dataset_ids": [fold.train_dataset_id for fold in backtest.folds],
-        "evaluation_dataset_ids": [
-            fold.evaluation_dataset_id for fold in backtest.folds
-        ],
-        "calibration_n_bins": calibration.n_bins if calibration is not None else None,
-        "macro_expected_calibration_error": (
-            calibration.macro_expected_calibration_error
-            if calibration is not None
-            else None
-        ),
-        "code_revision": code_revision.strip() if code_revision is not None else None,
-    }
+    calibration_report_id = (
+        calibration.report_id if calibration is not None else None
+    )
+    calibration_n_bins = calibration.n_bins if calibration is not None else None
+    macro_ece = (
+        calibration.macro_expected_calibration_error
+        if calibration is not None
+        else None
+    )
+    normalized_revision = code_revision.strip() if code_revision is not None else None
+    fold_ids = tuple(fold.fold_id for fold in backtest.folds)
+    training_run_ids = tuple(fold.training_run_id for fold in backtest.folds)
+    model_ids = tuple(fold.model_id for fold in backtest.folds)
+    train_dataset_ids = tuple(fold.train_dataset_id for fold in backtest.folds)
+    evaluation_dataset_ids = tuple(
+        fold.evaluation_dataset_id for fold in backtest.folds
+    )
 
-    experiment_id = _experiment_id(identity)
-
-    return ExperimentManifest(
-        experiment_id=experiment_id,
-        aggregate_metrics=backtest.aggregate_metrics,
-        model_parameters=backtest.model_parameters,
-        fold_ids=tuple(identity["fold_ids"]),
-        training_run_ids=tuple(identity["training_run_ids"]),
-        model_ids=tuple(identity["model_ids"]),
-        train_dataset_ids=tuple(identity["train_dataset_ids"]),
-        evaluation_dataset_ids=tuple(identity["evaluation_dataset_ids"]),
+    identity = _identity_payload(
         backtest_run_id=backtest.backtest_run_id,
-        calibration_report_id=identity["calibration_report_id"],
+        calibration_report_id=calibration_report_id,
         model_spec_id=backtest.model_spec_id,
         model_family=backtest.model_family,
         model_version=backtest.model_version,
         model_random_seed=backtest.model_random_seed,
+        model_parameters=backtest.model_parameters,
         split_policy_id=backtest.split_policy_id,
         feature_set_id=backtest.feature_set_id,
         cutoff_policy_id=backtest.cutoff_policy_id,
         result_eligibility_policy_id=backtest.result_eligibility_policy_id,
         imputation_policy_id=backtest.imputation_policy_id,
         prediction_count=backtest.prediction_count,
-        calibration_n_bins=identity["calibration_n_bins"],
-        macro_expected_calibration_error=identity[
-            "macro_expected_calibration_error"
-        ],
-        code_revision=identity["code_revision"],
+        aggregate_metrics=backtest.aggregate_metrics,
+        fold_ids=fold_ids,
+        training_run_ids=training_run_ids,
+        model_ids=model_ids,
+        train_dataset_ids=train_dataset_ids,
+        evaluation_dataset_ids=evaluation_dataset_ids,
+        calibration_n_bins=calibration_n_bins,
+        macro_expected_calibration_error=macro_ece,
+        code_revision=normalized_revision,
     )
+
+    return ExperimentManifest(
+        experiment_id=_experiment_id(identity),
+        backtest_run_id=backtest.backtest_run_id,
+        calibration_report_id=calibration_report_id,
+        model_spec_id=backtest.model_spec_id,
+        model_family=backtest.model_family,
+        model_version=backtest.model_version,
+        model_random_seed=backtest.model_random_seed,
+        model_parameters=backtest.model_parameters,
+        split_policy_id=backtest.split_policy_id,
+        feature_set_id=backtest.feature_set_id,
+        cutoff_policy_id=backtest.cutoff_policy_id,
+        result_eligibility_policy_id=backtest.result_eligibility_policy_id,
+        imputation_policy_id=backtest.imputation_policy_id,
+        prediction_count=backtest.prediction_count,
+        aggregate_metrics=backtest.aggregate_metrics,
+        fold_ids=fold_ids,
+        training_run_ids=training_run_ids,
+        model_ids=model_ids,
+        train_dataset_ids=train_dataset_ids,
+        evaluation_dataset_ids=evaluation_dataset_ids,
+        calibration_n_bins=calibration_n_bins,
+        macro_expected_calibration_error=macro_ece,
+        code_revision=normalized_revision,
+    )
+
+
+def _identity_payload(
+    *,
+    backtest_run_id: str,
+    calibration_report_id: str | None,
+    model_spec_id: str,
+    model_family: str,
+    model_version: str,
+    model_random_seed: int,
+    model_parameters: tuple[tuple[str, bool | int | float | str], ...],
+    split_policy_id: str,
+    feature_set_id: str,
+    cutoff_policy_id: str,
+    result_eligibility_policy_id: str,
+    imputation_policy_id: str,
+    prediction_count: int,
+    aggregate_metrics: EvaluationMetrics,
+    fold_ids: tuple[str, ...],
+    training_run_ids: tuple[str, ...],
+    model_ids: tuple[str, ...],
+    train_dataset_ids: tuple[str, ...],
+    evaluation_dataset_ids: tuple[str, ...],
+    calibration_n_bins: int | None,
+    macro_expected_calibration_error: float | None,
+    code_revision: str | None,
+) -> dict[str, Any]:
+    return {
+        "backtest_run_id": backtest_run_id,
+        "calibration_report_id": calibration_report_id,
+        "model_spec_id": model_spec_id,
+        "model_family": model_family,
+        "model_version": model_version,
+        "model_random_seed": model_random_seed,
+        "model_parameters": [list(item) for item in model_parameters],
+        "split_policy_id": split_policy_id,
+        "feature_set_id": feature_set_id,
+        "cutoff_policy_id": cutoff_policy_id,
+        "result_eligibility_policy_id": result_eligibility_policy_id,
+        "imputation_policy_id": imputation_policy_id,
+        "prediction_count": prediction_count,
+        "aggregate_metrics": {
+            "n_predictions": aggregate_metrics.n_predictions,
+            "accuracy": aggregate_metrics.accuracy,
+            "log_loss": aggregate_metrics.log_loss,
+            "multiclass_brier_score": aggregate_metrics.multiclass_brier_score,
+            "ranked_probability_score": aggregate_metrics.ranked_probability_score,
+        },
+        "fold_ids": list(fold_ids),
+        "training_run_ids": list(training_run_ids),
+        "model_ids": list(model_ids),
+        "train_dataset_ids": list(train_dataset_ids),
+        "evaluation_dataset_ids": list(evaluation_dataset_ids),
+        "calibration_n_bins": calibration_n_bins,
+        "macro_expected_calibration_error": macro_expected_calibration_error,
+        "code_revision": code_revision,
+    }
 
 
 def _experiment_id(payload: dict[str, Any]) -> str:
