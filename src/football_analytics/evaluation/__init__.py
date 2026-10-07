@@ -7,6 +7,12 @@ from football_analytics.evaluation.backtest import (
     TemporalBacktestResult,
     run_temporal_backtest,
 )
+from football_analytics.evaluation.calibration import (
+    CalibrationBin,
+    CalibrationReport,
+    OutcomeCalibrationReport,
+    build_calibration_report,
+)
 from football_analytics.evaluation.metrics import (
     EvaluationMetrics,
     ScoredPrediction,
@@ -31,9 +37,12 @@ from football_analytics.evaluation.splits import (
 __all__ = [
     "BacktestFoldResult",
     "BacktestPrediction",
+    "CalibrationBin",
+    "CalibrationReport",
     "EvaluationMetrics",
     "ExpandingWindowPolicy",
     "ModelTrainer",
+    "OutcomeCalibrationReport",
     "OutcomeProbabilities",
     "RollingWindowPolicy",
     "ScoredPrediction",
@@ -43,6 +52,7 @@ __all__ = [
     "TemporalFoldBuildReport",
     "TemporalFoldSkipReason",
     "accuracy",
+    "build_calibration_report",
     "build_expanding_window_folds",
     "build_rolling_window_folds",
     "evaluate_predictions",
