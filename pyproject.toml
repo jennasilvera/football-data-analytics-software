@@ -8,6 +8,9 @@ version = "0.2.0.dev0"
 description = "Research- and production-oriented analytics platform for senior men's international football."
 requires-python = ">=3.12"
 
+[project.scripts]
+football-analytics = "football_analytics.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

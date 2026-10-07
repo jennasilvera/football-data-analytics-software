@@ -2,7 +2,7 @@
 
 [![Football Data Analytics CI](https://github.com/jennasilvera/football-data-analytics-software/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/football-data-analytics-software/actions/workflows/ci.yml)
 
-A research- and production-oriented analytics platform for **senior men's international football**.
+Football Data Analytics Software is a research-grade analytics and forecasting platform under active development for **senior men’s national-team football**. It estimates pre-match probabilities and evaluates forecast quality with reproducible data and model lineage.
 
 The project is a maintainable analytical system with explicit data contracts, reproducible research, leakage controls, model/version lineage, and interfaces that can support both research and production workflows.
 
@@ -55,7 +55,7 @@ This package is retained during migration so useful behavior can be preserved an
 
 ### V2 implementation: `football_analytics`
 
-The V2 components are integrated on `reimplementation/v2-integrated-research`, preserving the existing staged branches and legacy pipeline.
+The integrated V2 foundation is on `master`. Native scoreline modeling and paired model comparison extend that foundation while preserving the legacy pipeline.
 
 The integrated foundation currently includes:
 
@@ -80,7 +80,9 @@ The integrated foundation currently includes:
 - Point-in-time feature contracts
 - Explicit observed / missing / imputed feature states
 - Competition, squad availability, travel, and market snapshot feature providers
-- Native logistic and histogram gradient boosting models
+- Native class-frequency, logistic, histogram gradient boosting, and Poisson models
+- Paired model comparison with identical training and evaluation samples
+- Portable Poisson model artifacts and scoreline forecast replay
 - Target-availability-safe temporal backtesting and calibration diagnostics
 - Content-addressed experiment manifests and a JSON registry
 - Executable V2 research service and CLI with auditable reports
@@ -215,7 +217,7 @@ Both `wc_forecast` and `football_analytics` are retained. The integrated V2 bran
 └── pyproject.toml
 ```
 
-The V2 research command becomes available on `master` when the integration PR is merged.
+The native research CLI and the legacy CLI are both available. See the [implementation status](docs/implementation_status.md) for completed capabilities and remaining requirements.
 
 ## Quickstart: Native V2 Research
 
@@ -223,6 +225,7 @@ After installing the dependencies below, run:
 
 ```bash
 make demo-v2
+make demo-v2-comparison
 python -m football_analytics research --help
 ```
 
@@ -232,7 +235,9 @@ JSON report containing predictions, fold metrics, source/catalog provenance, and
 runtime versions under `outputs/v2-research/`.
 
 The sample is synthetic and validates the workflow, not predictive performance.
-The initial CLI exposes the rolling-form baseline; other V2 providers remain
+The CLI exposes rolling-form classifiers, a training-only class-frequency baseline,
+and an independent Poisson score model. `research --model all` produces a paired
+comparison report and replayable Poisson artifacts. Other feature providers remain
 available through their typed interfaces. See [workflow semantics and limitations](docs/v2_research_workflow.md).
 
 ## Quickstart: Existing Operational Pipeline
@@ -315,6 +320,14 @@ Data sources should have documented:
 - Leakage risk
 
 The V2 source layer is designed so unknown metadata remains unknown rather than being replaced by convenient defaults.
+
+## Implementation Status
+
+The [requirements map](docs/implementation_status.md) distinguishes native V2,
+legacy-only, and planned capabilities. The [Poisson model card](docs/poisson_model_card.md)
+records assumptions, temporal controls, and limitations. Learned recalibration,
+validated uncertainty intervals, native team intelligence, and commercial deployment
+remain unfinished.
 
 ## Reimplementation Strategy
 

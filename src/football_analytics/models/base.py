@@ -19,6 +19,8 @@ class ModelFamily(StrEnum):
 
     LOGISTIC_REGRESSION = "logistic_regression"
     HIST_GRADIENT_BOOSTING = "hist_gradient_boosting"
+    CLASS_FREQUENCY = "class_frequency"
+    POISSON = "poisson"
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,10 +92,17 @@ class ModelTrainingMetadata:
 class ProbabilisticModel(Protocol):
     """Minimal inference contract shared by native V2 probabilistic models."""
 
-    model_id: str
-    feature_names: tuple[str, ...]
-    feature_set_id: str
-    imputation_policy_id: str
+    @property
+    def model_id(self) -> str: ...
+
+    @property
+    def feature_names(self) -> tuple[str, ...]: ...
+
+    @property
+    def feature_set_id(self) -> str: ...
+
+    @property
+    def imputation_policy_id(self) -> str: ...
 
     def predict_row(self, row: MaterializedFeatureRow) -> OutcomeProbabilities:
         """Predict one three-way outcome probability distribution."""

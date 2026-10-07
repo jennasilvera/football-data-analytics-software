@@ -8,7 +8,11 @@ its metrics test software behavior and provide no evidence of predictive skill.
 
 ## Inputs and declared assumptions
 
-`python -m football_analytics research --help` lists the interface. Required
+`python -m football_analytics research --help` lists the interface. The installed
+`football-analytics` command is equivalent. `--model class-frequency` runs the
+training-only smoothed frequency benchmark; `--model poisson` runs the canonical
+score model; `--model all` evaluates all four families on identical folds and
+emits a paired comparison report. Required
 inputs are a results CSV, governed team and competition JSON catalogs, source ID,
 timezone-aware ingestion time, one or more timezone-aware training cutoffs, and
 evaluation-window length. The CSV uses the retained legacy results schema:
@@ -74,7 +78,8 @@ in `experiments/`. Reports capture more provenance than the current manifest
 identity: runtime/catalog/source changes can create a different report while
 retaining an experiment ID if the evaluated model datasets are unchanged.
 Reproducibility across different numerical libraries or hardware is not promised.
-Trained model binaries are not persisted by this workflow.
+Poisson fitted state is persisted as self-validating JSON, without pickle.
+Classifier binaries are not yet persisted. See the [Poisson model card](poisson_model_card.md).
 
 ## Integration status
 
@@ -85,6 +90,23 @@ squad/travel providers. Probability contracts now live in the domain layer to
 avoid a feature/evaluation import cycle; the old evaluation import remains a
 compatible re-export. Fresh-process imports are regression-tested.
 
-The full reimplementation remains in progress. Next major work includes native
-Poisson/ensemble migration, persisted model artifacts, evaluation slices and
-benchmarks, governed external data, product APIs, and deployment infrastructure.
+Native Poisson migration, portable score-model artifacts and paired comparisons
+are now implemented. The full reimplementation remains in progress: see the
+[requirements map](implementation_status.md) for remaining calibration/ensemble,
+source governance, classifier persistence, evaluation, API and deployment work.
+
+## Comparing models
+
+`make demo-v2-comparison` evaluates class frequency (the reference), logistic,
+histogram gradient boosting and Poisson. Comparisons require identical training
+match identities, evaluation match/outcome identities, forecast times and fold
+cutoffs. No silently intersected sample or dropped unseen-team row is allowed.
+Metrics are recomputed from predictions and differences are descriptive; there is
+no automatic winner promotion or statistical significance claim. The JSON report
+contains all runs and the Markdown report contains the paired score table.
+
+Research report schema 2 adds `runs` and `comparison`. The existing top-level
+`backtest`, `calibration`, `manifest` and stdout `metrics` describe the first
+(reference) run. Model artifacts are listed separately in stdout. Every evaluated
+model gets an experiment manifest. Poisson score forecasts retain expected goals,
+the full grid, modal score, entropy and omitted tail probability.
