@@ -36,6 +36,14 @@ from football_analytics.features.fifa_ranking import (
     FifaRankingObservation,
 )
 from football_analytics.features.form import RollingFormFeatureProvider
+from football_analytics.features.history import (
+    DEFAULT_RESULT_ELIGIBILITY_POLICY,
+    CompletedResultEligibilityPolicy,
+    ResultAvailabilityError,
+    ResultEligibility,
+    ResultEligibilityBasis,
+    completed_record_is_before_cutoff,
+)
 from football_analytics.features.materialization import (
     AppliedImputation,
     ConstantImputationRule,
@@ -54,8 +62,10 @@ from football_analytics.features.travel import (
 
 __all__ = [
     "AppliedImputation",
+    "CompletedResultEligibilityPolicy",
     "ConstantImputationRule",
     "DEFAULT_HISTORICAL_CUTOFF_POLICY",
+    "DEFAULT_RESULT_ELIGIBILITY_POLICY",
     "FeatureDefinition",
     "FeatureLineage",
     "FeatureMissingReason",
@@ -77,6 +87,9 @@ __all__ = [
     "PlayerAvailabilityStatus",
     "PredictionContext",
     "PredictionCutoffPolicy",
+    "ResultAvailabilityError",
+    "ResultEligibility",
+    "ResultEligibilityBasis",
     "RollingFormFeatureProvider",
     "ScheduleRestFeatureProvider",
     "SquadAvailabilityFeatureProvider",
@@ -86,6 +99,7 @@ __all__ = [
     "build_feature_vector",
     "build_feature_vector_artifact",
     "build_historical_feature_dataset",
+    "completed_record_is_before_cutoff",
     "feature_set_id_for_definitions",
     "load_feature_vector_artifact",
     "materialize_feature_vector",
