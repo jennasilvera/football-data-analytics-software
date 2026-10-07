@@ -184,6 +184,8 @@ Market prices can be used as research benchmarks, calibration references, and co
 
 ## Repository Structure
 
+The default branch currently centers on the operational `wc_forecast` package. The V2 reimplementation branches add `football_analytics` and dedicated V2 contract tests alongside it.
+
 ```text
 .
 ├── data/
@@ -194,16 +196,16 @@ Market prices can be used as research benchmarks, calibration references, and co
 ├── outputs/
 ├── reports/
 ├── src/
-│   ├── football_analytics/   # V2 architecture
-│   └── wc_forecast/         # Legacy implementation retained during migration
+│   ├── wc_forecast/         # Current operational implementation
+│   └── football_analytics/  # Added by the staged V2 reimplementation
 ├── tests/
-│   └── v2/                  # V2 contract and migration tests
+│   └── v2/                  # Added by the staged V2 reimplementation
 ├── .github/workflows/
 ├── Makefile
 └── pyproject.toml
 ```
 
-On `master`, the legacy package remains the primary executable implementation until the staged reimplementation is merged.
+Until the staged reimplementation is merged, `wc_forecast` remains the primary executable implementation on `master`.
 
 ## Quickstart: Existing Operational Pipeline
 
@@ -341,7 +343,7 @@ The project is being migrated in controlled slices.
 - Scheduled data refresh and forecast workflows
 - Monitoring and alerting
 
-See [`docs/v2_reimplementation_plan.md`](docs/v2_reimplementation_plan.md) for the detailed migration plan.
+The detailed migration plan is maintained with the V2 reimplementation branch and is merged with the architecture it describes.
 
 ## Development Policy
 
@@ -405,20 +407,6 @@ The existing `wc_forecast` system contains useful tested functionality, but seve
 - Broad CLI orchestration responsibilities
 
 Do not interpret demo outputs as evidence of guaranteed predictive performance or betting profitability.
-
-## Project Identity
-
-**Project:** Football Data Analytics Software
-
-**Recommended repository slug:** `football-data-analytics-software`
-
-**Recommended repository description:**
-
-> Research- and production-oriented analytics platform for senior men's international football: canonical data, point-in-time features, ratings, probabilistic forecasting, backtesting, simulation, and market benchmarking.
-
-**Recommended GitHub topics:**
-
-`football-analytics`, `sports-analytics`, `probabilistic-forecasting`, `machine-learning`, `data-engineering`, `time-series`, `elo-rating`, `backtesting`, `model-calibration`, `fastapi`, `python`
 
 ## License and Data Use
 
