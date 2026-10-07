@@ -1,771 +1,427 @@
-# World Cup Match Forecasting Engine
+# Football Data Analytics Software
 
-[![World Cup Forecasting CI](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml)
+[![Football Data Analytics CI](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml)
 
-A quant-style probabilistic football forecasting system for FIFA World Cup matches.
+A research- and production-oriented analytics platform for **senior men's international football**.
 
-This project estimates pre-match win/draw/loss probabilities using historical international match results, custom Elo ratings, model-ready feature engineering, chronological backtesting, and reviewer-facing model reports.
+The project is being reimplemented from a World Cup-specific forecasting engine into a broader system for canonical football data, point-in-time feature engineering, team-strength ratings, probabilistic forecasting, chronological evaluation, simulation, and market benchmarking.
 
-The project is intentionally framed as a probabilistic forecasting engine, not a tool that claims to perfectly predict football matches.
+The long-term goal is not a single tournament predictor or a portfolio demo. It is a maintainable analytical system with explicit data contracts, reproducible research, leakage controls, model/version lineage, and interfaces that can support both research and production workflows.
 
-## Why This Project Exists
+## Scope
 
-Football outcomes are noisy, low-scoring, and highly uncertain. A serious forecasting system should therefore focus on:
+Primary scope:
 
-- Calibrated probabilities
-- Transparent assumptions
-- Chronological backtesting
-- Baseline comparisons
-- Leakage prevention
-- Uncertainty-aware reporting
-- Reproducible data pipelines
+- Senior men's A-international matches
+- FIFA World Cup and qualification
+- Confederation championships and qualification
+- Nations League competitions
+- International friendlies
+- Other recognized senior men's national-team competitions
 
-This project is designed to resemble how a quantitative research, sports analytics, trading technology, or ML engineering team might build and evaluate a signal model.
+Explicitly out of scope for the core dataset unless modeled separately:
 
-## Current MVP
+- Women's internationals
+- Olympic/U-23 matches
+- Youth internationals
+- B teams and select teams
+- Club and academy football
+- Unofficial matches
 
-The current version includes:
+Unknown scope metadata should be reviewed or quarantined rather than guessed.
 
-- Historical results ingestion
-- Data validation
-- Custom Elo model
-- Match-importance weighting
-- Margin-of-victory Elo adjustment
-- Neutral-site handling
-- Pre-match feature table generation
-- Logistic regression baseline
-- Chronological train/test backtest
-- Accuracy, log loss, and multiclass Brier score metrics
-- Markdown backtest report generation
-- Poisson expected-goals model
-- Scoreline probability forecasting
-- Analyst-style match prediction reports
-- Lightweight ensemble forecast layer
-- Forecast entropy and model-disagreement signals
+## Current Repository State
+
+The repository currently contains two architectural generations.
+
+### Legacy implementation: `wc_forecast`
+
+The existing system remains operational while the replacement architecture is introduced. It includes:
+
+- Historical results ingestion and validation
+- Custom Elo ratings
+- Poisson expected-goals modeling
+- Logistic regression, gradient boosting, and random-forest baselines
+- Rolling and chronological backtests
+- Feature ablation and model-selection utilities
+- Calibration and uncertainty analysis
+- Market-implied probability and closing-line-value analysis
+- Player-availability and market-movement signals
 - Monte Carlo group-stage simulation
-- Group advancement probability outputs
-- Market-implied probability and expected value evaluation
-- Batch market odds slate evaluation and ranked edge output
-- Strategy policy filtering for actionable edges
-- Fractional Kelly stake sizing with exposure caps
-- Batch prediction ledger logging for candidate edges
-- Batch prediction settlement from final results and closing odds
-- Timestamped prediction ledger for forecast auditability
-- Ledger settlement with final score, closing odds, and realized return
-- Prediction ledger performance report
-- Markdown group-stage simulation report
-- Unit tests and linting
+- SQLite-backed feature, model, and prediction persistence
+- FastAPI service components
+- CLI workflows
+- Automated tests and GitHub Actions CI
 
-## One-Command Demo
+This package is retained during migration so useful behavior can be preserved and tested rather than discarded in a greenfield rewrite.
 
-Run the full reproducible demo pipeline:
+### V2 implementation: `football_analytics`
 
-    make demo
+The V2 architecture is being built on the `reimplementation/v2` branch and related stacked branches.
 
-This executes:
+The completed foundation currently includes:
 
-- historical result ingestion
-- Elo rating generation
-- pre-match feature generation
-- logistic-regression backtest
-- backtest report generation
-- Poisson expected-goals prediction
-- match prediction report generation
-- market edge and expected value evaluation
-- batch market odds slate evaluation
-- strategy policy filtering
-- stake sizing
-- batch prediction ledger logging
-- batch prediction settlement
-- timestamped prediction ledger logging
-- prediction settlement and realized return calculation
-- prediction ledger performance reporting
-- Monte Carlo group-stage simulation
-- group-stage simulation report generation
+- Canonical Team, Competition, and Match domain types
+- Explicit exact-kickoff vs date-only temporal precision
+- Source provenance and temporal metadata
+- `available_at` / `ingested_at` point-in-time contracts
+- Leakage-risk classification
+- Senior men's A-international scope validation
+- Canonical team and competition entity resolution
+- Explicit alias handling
+- Unresolved-record quarantine
+- Competition-agnostic tabular ingestion
+- Normalized / excluded / quarantined batch outputs
+- Deterministic source snapshot hashes
+- Canonical catalog loading
+- Legacy-results migration adapters
+- Replaceable rating-engine contracts
+- Legacy Elo parity adapter
+- Deterministic canonical rating replay
+- Immutable rating snapshots
+- Point-in-time feature contracts
+- Explicit observed / missing / imputed feature states
 
-You can also run quality checks with:
+The migration policy is simple: **preserve proven behavior, replace unsafe contracts, and change modeling assumptions only after parity is measurable.**
 
-    make check
+## Core Engineering Principles
 
-## Documentation and Reports
+### 1. Point-in-time correctness
 
-Key generated and maintained project documents:
+A model feature must be demonstrably available at the prediction cutoff.
 
-- [Backtest Report](reports/logistic_backtest_report.md)
-- [Match Prediction Report](reports/match_prediction_report.md)
-- [Group-Stage Simulation Report](reports/group_stage_simulation_report.md)
-- Prediction Ledger Performance Report generated at `outputs/prediction_ledger_report.md`
-- [Model Card](reports/model_card.md)
-- [Real Forecasting Agent Roadmap](docs/real_forecasting_agent_roadmap.md)
-- [Data Source Registry](docs/data_source_registry.md)
-- [Betting Evaluation Framework](docs/betting_evaluation_framework.md)
-- [Assumptions and Limitations](reports/assumptions.md)
+For a forecast at time `t`:
+
+```text
+feature.available_at <= t <= kickoff_at
+```
+
+If historical availability is unknown, the observation may remain useful for archival or post-match analysis, but it cannot silently become a pre-match feature.
+
+### 2. No invented precision
+
+Historical sources frequently provide only a match date.
+
+The platform represents that as date-only data rather than inventing a midnight kickoff. The same rule applies to publication timestamps, team identities, competition mappings, and other metadata.
+
+### 3. Canonical entities before modeling
+
+Source labels are not model identities.
+
+Team and competition names are resolved to canonical entities before downstream ratings, features, or forecasts are produced. Unknown entities are quarantined instead of receiving a synthetic identity or default rating.
+
+### 4. Leakage prevention is architectural
+
+Chronological ordering alone is not enough.
+
+The V2 design couples data values to source, event time, availability time, ingestion time, lineage, and leakage risk so temporal validity can be enforced at feature-build and backtest boundaries.
+
+### 5. Research and production concerns are separated
+
+Model research should not be entangled with:
+
+- Source ingestion
+- Entity resolution
+- Persistence
+- API transport
+- CLI orchestration
+- Market decision policy
+
+The system is being decomposed into explicit interfaces so those layers can evolve independently.
+
+### 6. Migration before modification
+
+The current Elo implementation is first migrated behind a stable V2 rating contract and parity-tested against the legacy behavior.
+
+Only after parity exists should research changes such as alternative K-factors, Glicko-style uncertainty, competition weighting, or new rating systems be evaluated.
+
+## Architecture Direction
+
+```text
+External / historical sources
+        |
+        v
+Source-specific adapters
+        |
+        v
+Source observations + provenance
+        |
+        v
+Scope validation
+        |
+        v
+Canonical entity resolution
+        |
+        +--> excluded records
+        |
+        +--> quarantined records
+        |
+        v
+Canonical matches
+        |
+        +--> rating replay / snapshots
+        |
+        +--> point-in-time feature providers
+        |
+        v
+Versioned feature vectors
+        |
+        v
+Probabilistic models
+        |
+        v
+Chronological / rolling evaluation
+        |
+        +--> calibration
+        +--> diagnostics
+        +--> research slices
+        |
+        v
+Forecast services / APIs / analytical outputs
+```
+
+Market prices can be used as research benchmarks, calibration references, and comparative signals. Betting or staking policy is intentionally treated as an optional downstream extension rather than the core identity of the platform.
 
 ## Repository Structure
 
-    world-cup-forecasting-engine/
-      data/
-        sample/                 # Tiny committed dataset for reproducible demo runs
-        raw/                    # Local raw data, ignored by Git
-        processed/              # Local processed outputs, ignored by Git
-      reports/                  # Markdown model/backtest reports
-      outputs/                  # Local model outputs, ignored by Git
-      src/
-        wc_forecast/
-          data/                 # Ingestion and validation
-          features/             # Pre-match feature engineering
-          models/               # Elo and ML models
-          reporting/            # Backtest/model report generation
-          simulation/           # Planned tournament simulation logic
-          cli.py                # Project command-line interface
-      tests/                    # Unit tests
+```text
+.
+├── data/
+│   ├── sample/
+│   ├── raw/
+│   └── processed/
+├── docs/
+├── outputs/
+├── reports/
+├── src/
+│   ├── football_analytics/   # V2 architecture
+│   └── wc_forecast/         # Legacy implementation retained during migration
+├── tests/
+│   └── v2/                  # V2 contract and migration tests
+├── .github/workflows/
+├── Makefile
+└── pyproject.toml
+```
+
+On `master`, the legacy package remains the primary executable implementation until the staged reimplementation is merged.
+
+## Quickstart: Existing Operational Pipeline
+
+Python 3.12+ is required.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -e .
+```
+
+Run quality checks:
+
+```bash
+ruff check .
+pytest
+```
+
+Run the existing reproducible pipeline:
+
+```bash
+make demo
+```
+
+The legacy CLI remains available during migration:
+
+```bash
+python -m wc_forecast health
+python -m wc_forecast ingest-results data/sample/historical_results_sample.csv
+python -m wc_forecast build-elo
+python -m wc_forecast build-features
+python -m wc_forecast backtest-logistic
+python -m wc_forecast report-backtest
+python -m wc_forecast predict-poisson Argentina France
+python -m wc_forecast report-match Argentina France
+```
+
+These commands validate the existing system. They are not the final V2 interface design.
+
+## Validation Strategy
+
+The project favors chronological and point-in-time evaluation over random train/test splits.
+
+Current and planned evaluation includes:
+
+- Expanding-window backtesting
+- Rolling-origin evaluation
+- Log loss
+- Multiclass Brier score
+- Ranked Probability Score
+- Calibration and reliability diagnostics
+- Feature ablation
+- Hyperparameter tuning
+- Competition-level slices
+- Confederation-level slices
+- Temporal robustness checks
+- Model-disagreement and entropy diagnostics
+- Market benchmark comparison
+- Prediction and model version lineage
+
+Forecast probabilities are estimates, not guarantees.
+
+## Data Governance
+
+Data sources should have documented:
+
+- Provider/source identity
+- Access method
+- Source version or snapshot
+- Event timestamp where known
+- Availability timestamp where known
+- Ingestion timestamp
+- License or legal-use notes
+- Transformation assumptions
+- Canonical entity mappings
+- Leakage risk
+
+The V2 source layer is designed so unknown metadata remains unknown rather than being replaced by convenient defaults.
+
+## Reimplementation Strategy
+
+The project is being migrated in controlled slices.
+
+### Foundation
 
-## Modeling Approach
+- Canonical domain
+- Temporal/provenance contracts
+- Entity resolution
+- Formal product scope
+- Generic source adapters
+- Quarantine/exclusion paths
+- Canonical catalogs
+- Data snapshot hashing
 
-The project currently uses a layered modeling workflow.
+### Rating migration
 
-### 1. Historical match ingestion
+- Replaceable rating protocol
+- Legacy Elo adapter
+- Immutable rating snapshots
+- Deterministic replay
+- Legacy parity tests
+- Ambiguous historical chronology checks
 
-- Loads match results from CSV
-- Validates required fields
-- Cleans dates, scores, teams, tournament names, and neutral-site flags
-- Adds match outcome labels
-
-### 2. Custom Elo model
-
-- Initializes unseen teams at a default rating
-- Produces pre-match expected scores
-- Adjusts for neutral vs non-neutral matches
-- Applies higher match weight to FIFA World Cup matches
-- Applies margin-of-victory scaling
-
-### 3. Pre-match feature table
-
-- Captures Elo ratings before each match update
-- Builds relative team-strength features
-- Separates pre-match features from final-score result columns
-
-### 4. Logistic regression baseline
-
-- Trains on historical pre-match features
-- Predicts three-class outcome probabilities:
-  - home/team A win
-  - draw
-  - away/team B win
-
-### 5. Chronological backtest
-
-- Splits matches by time rather than randomly
-- Evaluates the model on later matches
-- Reports accuracy, log loss, and multiclass Brier score
-
-### 6. Poisson expected-goals model
-
-- Estimates team attack strength from historical goals scored
-- Estimates team defensive weakness from historical goals conceded
-- Produces expected goals for both teams
-- Converts expected goals into scoreline probabilities
-- Derives home win, draw, and away win probabilities from the score matrix
-
-### 7. Match prediction report
-
-- Combines logistic-regression probabilities with Poisson expected-goals output
-- Shows most likely scoreline
-- Compares disagreement between model layers
-- Adds caveats about sample size, limitations, and future features
-
-### 8. Ensemble forecast layer
-
-- Blends logistic-regression probabilities with Poisson probabilities
-- Produces a final home/draw/away probability forecast
-- Reports predicted outcome and confidence label
-- Calculates normalized probability entropy
-- Calculates maximum model disagreement across outcome classes
-- Treats model-layer disagreement as an uncertainty signal
-
-### 9. Monte Carlo group-stage simulation
-
-- Loads group-stage fixture definitions from CSV
-- Uses the Poisson expected-goals model to sample match scorelines
-- Simulates group standings repeatedly
-- Applies points, goal difference, and goals-for ranking logic
-- Estimates each team's probability of advancing from the group
-- Outputs average points, average goal difference, and average goals for
-
-## Leakage Prevention
-
-The feature table is built chronologically.
-
-For each match:
-
-1. The model records the teams' pre-match Elo ratings.
-2. The feature row is created.
-3. Only after that does the Elo model update using the final result.
-
-This prevents final scores from leaking into pre-match features.
-
-Final scores and outcomes are retained only as result/target columns for supervised learning and evaluation.
-
-## Quickstart
-
-Create and activate a virtual environment:
-
-    python3 -m venv .venv
-    source .venv/bin/activate
-    python -m pip install --upgrade pip
-    pip install -r requirements.txt
-    pip install -e .
-
-Run the full MVP pipeline:
-
-    python -m wc_forecast ingest-results data/sample/historical_results_sample.csv
-    python -m wc_forecast build-elo
-    python -m wc_forecast build-features
-    python -m wc_forecast backtest-logistic
-    python -m wc_forecast report-backtest
-    python -m wc_forecast predict-poisson Argentina France
-    python -m wc_forecast report-match Argentina France
-    python -m wc_forecast evaluate-market Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
-    python -m wc_forecast batch-evaluate-market data/sample/market_odds_sample.csv
-    python -m wc_forecast apply-strategy-policy outputs/batch_market_edges.csv
-    python -m wc_forecast size-stakes outputs/strategy_policy_edges.csv
-    python -m wc_forecast log-batch-predictions outputs/stake_sizing_edges.csv
-    python -m wc_forecast settle-batch-predictions data/sample/settlement_results_sample.csv
-    python -m wc_forecast log-prediction Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
-    PREDICTION_ID=$(tail -n 1 outputs/prediction_ledger.csv
-outputs/prediction_ledger_report.md | cut -d',' -f1)
-    python -m wc_forecast settle-prediction "$PREDICTION_ID" --final-home-score 1 --final-away-score 1 --closing-home-odds 2.10 --closing-draw-odds 3.25 --closing-away-odds 3.60
-    python -m wc_forecast report-ledger
-    python -m wc_forecast simulate-group-stage --n-simulations 1000
-    python -m wc_forecast report-group-stage
-
-Run tests and linting:
-
-    pytest
-    ruff check .
-
-## CLI Commands
-
-    python -m wc_forecast health
-    python -m wc_forecast ingest-results data/sample/historical_results_sample.csv
-    python -m wc_forecast build-elo
-    python -m wc_forecast build-features
-    python -m wc_forecast backtest-logistic
-    python -m wc_forecast report-backtest
-    python -m wc_forecast predict-poisson Argentina France
-    python -m wc_forecast report-match Argentina France
-    python -m wc_forecast simulate-group-stage --n-simulations 1000
+### Feature architecture
 
-## Example Outputs
+- Point-in-time feature definitions
+- Feature-set versioning
+- Missingness semantics
+- Imputation lineage
+- Rating features
+- Form and context providers
+- FIFA-ranking provider
+- Schedule/rest/travel features
+- Leakage regression tests
 
-The pipeline writes local model artifacts such as:
+### Modeling and evaluation
 
-    data/processed/results.csv
-    data/processed/features.csv
-    outputs/elo_ratings.csv
-    outputs/elo_history.csv
-    outputs/logistic_backtest_predictions.csv
-    outputs/logistic_backtest_metrics.csv
-    reports/logistic_backtest_report.md
+- Native V2 probabilistic model interfaces
+- Logistic and tree-model migration
+- Poisson migration
+- Calibration layer
+- Ensemble research
+- Rolling backtest engine
+- Experiment metadata and reproducibility
 
-The backtest report includes:
+### Product interfaces
 
-- Model purpose
-- Metric summary
-- Recent match-level predictions
-- Probability estimates
-- Expected-goals estimates
-- Most likely scoreline
-- Ensemble forecast
-- Probability entropy
-- Model layer comparison
-- Model inputs
-- Leakage controls
-- Current limitations
-- Planned improvements
+- Application/service layer
+- Modular CLI
+- Versioned FastAPI routes
+- Analytical dashboard
+- Scheduled data refresh and forecast workflows
+- Monitoring and alerting
 
-## Current Limitations
+See [`docs/v2_reimplementation_plan.md`](docs/v2_reimplementation_plan.md) for the detailed migration plan.
 
-This project is currently an MVP. The committed sample dataset is intentionally small so reviewers can run the project immediately.
+## Development Policy
 
-The current results should not be interpreted as evidence of real-world predictive power.
+A change is not considered complete only because it adds a model or feature.
 
-Current limitations:
+Professional-grade changes should also address, where applicable:
 
-- Small demo dataset
-- Limited feature set
-- No injury or lineup data yet
-- No market-implied odds yet
-- Poisson model is still a transparent baseline
-- Current ensemble is a transparent weighted-average baseline, not yet calibrated
-- Group-stage simulation exists; knockout simulation is not implemented yet
+- Input contract
+- Temporal semantics
+- Provenance
+- Failure behavior
+- Tests
+- Reproducibility
+- Backward compatibility
+- Observability
+- Documentation
+- Research validation
 
-## Planned Upgrades
+Large migrations are intentionally split into reviewable pull requests rather than accumulated into one unbounded rewrite.
 
-Next planned additions:
+## CI
 
-- Larger public historical results dataset
-- Rolling form features
-- Strength-of-schedule features
-- FIFA ranking features
-- Calibrated ensemble model with validation-based weights
-- Reliability/calibration plots
-- Knockout-stage Monte Carlo simulator
-- Group-stage and knockout advancement probabilities
-- FastAPI prediction service
-- Streamlit or React dashboard
-- Full model card
-- CI with GitHub Actions
+GitHub Actions runs:
 
-## Data Use Statement
+1. Ruff linting
+2. Full pytest suite
+3. Existing end-to-end sample forecasting pipeline
 
-This project uses public, reproducible, non-proprietary data. The committed sample dataset is intentionally small and included only for demonstration purposes.
+The legacy pipeline remains in CI during V2 migration to catch regressions while replacement components are introduced.
 
-Future data integrations should avoid unclear scraping practices and should document source, license, access date, and transformation assumptions.
+## Research and Commercial Direction
 
-## Professional Framing
+The architecture is intended to support work beyond one competition or one prediction surface, including:
 
-This project does not claim to perfectly predict football matches.
+- National-team strength estimation
+- Match probability forecasting
+- Team and competition analytics
+- Schedule and travel effects
+- Player availability
+- Tournament simulation
+- Model calibration
+- Market benchmarking
+- Research APIs
+- Forecast audit trails
+- Model and data versioning
+- Reproducible experiment tracking
 
-It demonstrates how to build a reproducible probabilistic forecasting pipeline with:
+Commercial use would require additional work around licensed data, reliability SLOs, persistence infrastructure, authentication, observability, operational support, and deployment architecture. The repository is being designed so those concerns can be added without rewriting the research core.
 
-- Pre-match feature generation
-- Quant-style rating systems
-- Chronological model evaluation
-- Proper leakage controls
-- Transparent reporting
-- Clean Python engineering practices
+## Important Limitations
 
-## System Design and Forecasting Agent Architecture
+The repository is under active architectural migration.
 
-### Core Design Principles
+The existing `wc_forecast` system contains useful tested functionality, but several legacy assumptions are being replaced, including:
 
-#### Leakage prevention
+- World Cup-specific fixture defaults
+- Implicit team aliases
+- Default ratings for unresolved forecast teams
+- Weak source-level availability semantics
+- Coupled feature/model state
+- Broad CLI orchestration responsibilities
 
-The feature pipeline is chronological. Pre-match features are calculated before the match result is known. Elo ratings are updated after each match, but the model only receives the pre-match rating state for prediction.
+Do not interpret demo outputs as evidence of guaranteed predictive performance or betting profitability.
 
-#### Probabilistic forecasting
+## Project Identity
 
-The engine does not only output a winner. It produces probability distributions over:
+**Project:** Football Data Analytics Software
 
-- home win
-- draw
-- away win
-- scorelines
-- group-stage advancement probabilities
+**Recommended repository slug:** `football-data-analytics-software`
 
-This allows the system to support calibration, risk analysis, and expected value calculations.
+**Recommended repository description:**
 
-#### Separation of model and decision layers
+> Research- and production-oriented analytics platform for senior men's international football: canonical data, point-in-time features, ratings, probabilistic forecasting, backtesting, simulation, and market benchmarking.
 
-The model forecast is not treated as an automatic action.
+**Recommended GitHub topics:**
 
-The system separates:
+`football-analytics`, `sports-analytics`, `probabilistic-forecasting`, `machine-learning`, `data-engineering`, `time-series`, `elo-rating`, `backtesting`, `model-calibration`, `fastapi`, `python`
 
-    forecast probability
-    → market-implied probability
-    → edge detection
-    → strategy policy filtering
-    → stake sizing
-    → ledger logging
-    → settlement
-    → performance review
+## License and Data Use
 
-This makes the project closer to a real research or trading process, where a signal must pass risk and quality gates before becoming an action.
+Before production or commercial use, verify the license and permitted use of every upstream dataset.
 
-### Main Components
-
-#### Data ingestion
-
-The ingestion layer validates historical match results before writing processed data. It checks schema quality, missing values, team validity, score values, and outcome construction.
-
-Primary command:
-
-    python -m wc_forecast ingest-results data/sample/historical_results_sample.csv
-
-#### Elo rating engine
-
-The Elo module generates team strength ratings using chronological match results. It supports tournament weighting, margin-of-victory adjustment, and neutral-site handling.
-
-Primary command:
-
-    python -m wc_forecast build-elo
-
-#### Feature engineering
-
-The feature builder creates pre-match model features from historical data and Elo state. It is designed to avoid future leakage.
-
-Primary command:
-
-    python -m wc_forecast build-features
-
-#### Logistic model backtest
-
-The logistic model provides a supervised learning baseline with chronological train/test splitting. It reports accuracy, log loss, and multiclass Brier score.
-
-Primary command:
-
-    python -m wc_forecast backtest-logistic
-
-#### Poisson expected-goals model
-
-The Poisson model estimates expected goals and scoreline probabilities. It supports match-level probability forecasts and scoreline analysis.
-
-Primary command:
-
-    python -m wc_forecast predict-poisson Argentina France
-
-#### Ensemble forecast
-
-The ensemble combines model outputs into a blended probability forecast. It tracks confidence, entropy, and model disagreement.
-
-This gives the strategy layer more than just a single probability estimate. It also receives quality and uncertainty indicators.
-
-#### Market odds and edge detection
-
-The market layer converts decimal odds into implied probabilities, removes market overround, compares model probabilities against market fair probabilities, and calculates expected value.
-
-Primary commands:
-
-    python -m wc_forecast evaluate-market Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
-    python -m wc_forecast batch-evaluate-market data/sample/market_odds_sample.csv
-
-#### Strategy policy layer
-
-The strategy policy layer filters raw candidate edges using risk and quality gates:
-
-- minimum edge
-- minimum expected value
-- maximum entropy
-- maximum model disagreement
-- maximum market overround
-- allowed confidence levels
-
-Primary command:
-
-    python -m wc_forecast apply-strategy-policy outputs/batch_market_edges.csv
-
-#### Stake sizing
-
-The stake sizing layer applies fractional Kelly sizing with caps on single-bet exposure and total portfolio exposure.
-
-Primary command:
-
-    python -m wc_forecast size-stakes outputs/strategy_policy_edges.csv
-
-#### Prediction ledger
-
-The ledger records each forecast and decision for auditability. It stores model probabilities, market probabilities, edges, expected values, strategy decisions, stake sizing fields, final outcomes, closing odds, and realized returns.
-
-Primary commands:
-
-    python -m wc_forecast log-batch-predictions outputs/stake_sizing_edges.csv
-    python -m wc_forecast settle-batch-predictions data/sample/settlement_results_sample.csv
-    python -m wc_forecast report-ledger
-
-#### Group-stage simulation
-
-The simulation layer uses forecast probabilities and scoreline sampling to estimate group-stage standings and advancement probabilities.
-
-Primary command:
-
-    python -m wc_forecast simulate-group-stage --n-simulations 500
-
-### One-Command Demo
-
-The project includes a full demo pipeline:
-
-    make demo
-
-The demo runs ingestion, ratings, features, model backtesting, match forecasting, market edge evaluation, strategy policy filtering, stake sizing, ledger logging, settlement, reporting, and group-stage simulation.
-
-The project also includes:
-
-    make check
-
-which runs linting and the full test suite.
-
-### Outputs
-
-Important generated outputs include:
-
-    data/processed/results.csv
-    data/processed/features.csv
-    outputs/elo_ratings.csv
-    outputs/logistic_backtest_predictions.csv
-    outputs/logistic_backtest_metrics.csv
-    outputs/poisson_prediction.csv
-    outputs/match_prediction.csv
-    outputs/market_edge.csv
-    outputs/batch_market_edges.csv
-    outputs/strategy_policy_edges.csv
-    outputs/stake_sizing_edges.csv
-    outputs/prediction_ledger.csv
-    outputs/prediction_ledger_report.md
-    outputs/group_stage_simulation.csv
-    reports/logistic_backtest_report.md
-    reports/match_prediction_report.md
-    reports/group_stage_simulation_report.md
-
-### Testing and CI
-
-The repository includes automated tests for:
-
-- data ingestion
-- Elo ratings
-- feature engineering
-- model backtesting
-- Poisson forecasting
-- ensemble blending
-- market odds de-vigging
-- batch edge evaluation
-- strategy policy filtering
-- fractional Kelly stake sizing
-- ledger logging
-- settlement
-- stake-weighted reporting
-- group-stage simulation
-- CLI import health
-
-The CI workflow runs linting, tests, and the sample forecasting pipeline.
-
-### Current Limitations
-
-The committed sample dataset is intentionally small and synthetic/demo-oriented. The current outputs should be interpreted as workflow validation, not evidence of real predictive accuracy or betting profitability.
-
-A real production-grade version would require:
-
-- larger historical results datasets
-- team/player availability data
-- fixture metadata
-- travel/rest/contextual features
-- market odds snapshots with timestamps
-- out-of-sample prediction history
-- calibration tracking
-- robust feature versioning
-- model version registry
-- automated data refresh
-- monitoring and alerting
-
-### Future Extensions
-
-Potential future extensions include:
-
-- richer feature store
-- player-level availability model
-- injury and suspension ingestion
-- market movement tracking
-- closing-line value dashboards
-- calibration plots
-- model registry
-- automated scheduled predictions
-- API service for forecasts
-- dashboard for match and portfolio views
-- database-backed prediction ledger
-
-### Summary
-
-This project demonstrates more than a basic machine learning model. It implements an end-to-end forecasting and decision workflow with modeling, risk filters, stake sizing, audit logging, settlement, and performance reporting.
-
-The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
-
-
-## Upcoming Forecast Audit
-
-To create a compact audit summary for upcoming fixture predictions:
-
-    python -m wc_forecast audit-upcoming-forecasts \
-      outputs/world_cup_2026_upcoming_forecasts.csv \
-      --output outputs/world_cup_2026_upcoming_forecast_audit.csv
-
-The audit summarizes:
-
-- Forecast count
-- Average confidence
-- Highest- and lowest-confidence matches
-- Rating warning count
-- Alias lookup count
-- Predicted outcome distribution
-
-The one-command workflow also generates this audit automatically.
-
-## Forecast Artifact Index
-
-To list the generated forecast and validation outputs:
-
-    python -m wc_forecast list-forecast-artifacts \
-      --output outputs/forecast_artifact_index.csv
-
-This creates an index containing each artifact path, whether it exists, file size, and last modified timestamp.
-
-The one-command workflow also generates this artifact index automatically.
-
-## Upcoming Forecast Summary Report
-
-After generating upcoming fixture forecasts, create a Markdown summary report:
-
-    python -m wc_forecast summarize-upcoming-forecasts \
-      outputs/world_cup_2026_upcoming_forecasts.csv \
-      --output outputs/world_cup_2026_upcoming_forecast_report.md
-
-The report highlights:
-
-- Highest-confidence forecasts
-- Most uncertain matches
-- Potential lower-rated-team upset spots
-- Rating warnings, if any
-
-The one-command workflow also generates this report automatically.
-
-## Sample Fixture Data Notice
-
-The fixture file in `data/sample/world_cup_2026_fixtures_sample.csv` is a synthetic, rating-safe demo fixture slate used for tests, CI, and local smoke runs. It is not the official FIFA World Cup 2026 schedule.
-
-For real forecasting runs, provide an actual fixture schedule through:
-
-    python -m wc_forecast ingest-world-cup-fixtures data/raw/world_cup_2026_fixtures.csv
-
-## Makefile Shortcuts
-
-Useful project commands:
-
-    make validate
-
-Runs Ruff, pytest, and the package health check.
-
-    make forecast-sample
-
-Normalizes the committed sample World Cup fixture file, then runs upcoming fixture forecasts.
-
-    make forecast-report
-
-Generates the Markdown upcoming forecast report.
-
-    make forecast-audit
-
-Generates the upcoming forecast audit CSV.
-
-    make forecast-artifacts
-
-Generates the forecast artifact index.
-
-    make forecast-workflow
-
-Runs the full upcoming World Cup forecast workflow.
-
-## Daily Forecast Runbook
-
-For the full analyst/operator workflow, see [`docs/daily_forecast_runbook.md`](docs/daily_forecast_runbook.md).
-
-## One-Command Upcoming World Cup Forecast
-
-To run the full upcoming World Cup forecast workflow:
-
-    python -m wc_forecast run-upcoming-world-cup-forecast \
-      --from-date 2026-06-20 \
-      --train-cutoff-date 2026-01-01 \
-      --rating-cutoff-date 2026-06-19 \
-      --output outputs/world_cup_2026_upcoming_forecasts.csv
-
-This command:
-
-1. Ingests `data/raw/world_cup_2026_fixtures.csv` if present
-2. Falls back to an existing `data/processed/world_cup_2026_fixtures.csv`
-3. Builds the feature table
-4. Forecasts all upcoming known-team World Cup fixtures
-5. Writes `outputs/world_cup_2026_upcoming_forecasts.csv`
-
-Use `--skip-build-features` if the feature table is already current.
-
-## World Cup Fixture Schedule Ingestion
-
-To forecast all upcoming World Cup 2026 matches, first normalize a full raw fixture schedule:
-
-    python -m wc_forecast ingest-world-cup-fixtures \
-      data/raw/world_cup_2026_fixtures.csv \
-      --output data/processed/world_cup_2026_fixtures.csv
-
-The raw fixture file must contain:
-
-- `date`
-- `home_team`
-- `away_team`
-
-Optional columns:
-
-- `tournament`
-- `neutral`
-- `status`
-
-If optional columns are missing, the ingestion command defaults them to:
-
-- `tournament = FIFA World Cup`
-- `neutral = true`
-- `status = Scheduled`
-
-After ingestion, run:
-
-    python -m wc_forecast forecast-upcoming-fixtures \
-      --from-date 2026-06-20 \
-      --train-cutoff-date 2026-01-01 \
-      --rating-cutoff-date 2026-06-19 \
-      --output outputs/world_cup_2026_upcoming_forecasts.csv
-
-## Forecast All Upcoming World Cup Fixtures
-
-To forecast every upcoming known-team World Cup 2026 fixture from a full fixture file:
-
-    python -m wc_forecast forecast-upcoming-fixtures \
-      data/processed/world_cup_2026_fixtures.csv \
-      --train-cutoff-date 2026-01-01 \
-      --rating-cutoff-date 2026-06-19 \
-      --output outputs/world_cup_2026_upcoming_forecasts.csv
-
-The fixture file should contain at least:
-
-- `date`
-- `home_team`
-- `away_team`
-- `tournament`
-- `neutral`
-
-If a `status` column is present, completed/final/postponed fixtures are excluded. Knockout placeholders such as `TBD` are excluded by default until both teams are known.
-
-## Reproducible Demo
-
-Run the full modeling workflow with an existing processed results file:
-
-    ./scripts/run_demo.sh
-
-Or provide a raw international results CSV path:
-
-    ./scripts/run_demo.sh path/to/results.csv
-
-The demo performs:
-
-1. Project health check
-2. Results data preparation
-3. Feature engineering
-4. Tuned rolling backtest
-5. Feature ablation validation
-6. Sample World Cup fixture forecasting
-
-Key outputs:
-
-- `outputs/rolling_backtest_metrics.csv`
-- `outputs/feature_ablation_results.csv`
-- `outputs/world_cup_2026_forecasts.csv`
-
-## Model Selection
-
-The default forecasting model is selected using rolling-origin validation across historical cutoff dates, feature ablation, and logistic hyperparameter tuning.
-
-Current default:
-
-- Model: logistic regression
-- Recency half-life: 2,190 days
-- Logistic regularization C: 4.0
-- Feature set: Elo, match context, rolling form, and attack/defense form
-
-See [`docs/model_selection.md`](docs/model_selection.md) for validation results and rationale.
-
+Source provenance and legal-use notes should be stored alongside ingestion definitions rather than assumed from a URL or file name.
