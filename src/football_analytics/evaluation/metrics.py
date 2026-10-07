@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from football_analytics.domain import MatchOutcome
 from football_analytics.evaluation.probabilities import OutcomeProbabilities
 
-
 LOG_LOSS_EPSILON = 1e-15
 
 
