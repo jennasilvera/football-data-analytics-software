@@ -17,7 +17,6 @@ from football_analytics.features import (
 )
 from football_analytics.features.travel import great_circle_distance_km
 
-
 CUTOFF = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
 
