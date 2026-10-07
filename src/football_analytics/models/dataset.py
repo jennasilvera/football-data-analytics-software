@@ -10,13 +10,14 @@ from football_analytics.features.dataset import (
     HistoricalFeatureDataset,
     HistoricalFeatureExample,
 )
+from football_analytics.features.history import ResultEligibilityBasis
 from football_analytics.features.materialization import (
     ImputationPolicy,
     MaterializedFeatureRow,
     materialize_feature_vector,
 )
 
-MODEL_DATASET_SCHEMA_VERSION = 1
+MODEL_DATASET_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,6 +25,8 @@ class ModelExample:
     """One supervised, fully materialized point-in-time model example."""
 
     match_id: str
+    target_available_at_iso: str
+    target_availability_basis: ResultEligibilityBasis
     target: MatchOutcome
     row: MaterializedFeatureRow
 
@@ -39,6 +42,7 @@ class ModelDataset:
     dataset_id: str
     feature_set_id: str
     cutoff_policy_id: str
+    result_eligibility_policy_id: str
     imputation_policy_id: str
     column_names: tuple[str, ...]
     examples: tuple[ModelExample, ...]
@@ -51,6 +55,8 @@ class ModelDataset:
             raise ValueError("feature_set_id must not be blank.")
         if not self.cutoff_policy_id.strip():
             raise ValueError("cutoff_policy_id must not be blank.")
+        if not self.result_eligibility_policy_id.strip():
+            raise ValueError("result_eligibility_policy_id must not be blank.")
         if not self.imputation_policy_id.strip():
             raise ValueError("imputation_policy_id must not be blank.")
         if not self.column_names:
@@ -94,6 +100,7 @@ def build_model_dataset(
     return build_model_dataset_from_examples(
         feature_set_id=dataset.feature_set_id,
         cutoff_policy_id=dataset.cutoff_policy_id,
+        result_eligibility_policy_id=dataset.result_eligibility_policy_id,
         examples=dataset.examples,
         imputation_policy=imputation_policy,
     )
@@ -103,13 +110,15 @@ def build_model_dataset_from_examples(
     *,
     feature_set_id: str,
     cutoff_policy_id: str,
+    result_eligibility_policy_id: str,
     examples: Sequence[HistoricalFeatureExample],
     imputation_policy: ImputationPolicy,
 ) -> ModelDataset:
     """Materialize a declared subset of historical examples.
 
-    This function is used by temporal backtests so train and evaluation datasets
-    receive their own immutable content identities.
+    Temporal backtests use this function so train and evaluation datasets receive
+    separate immutable identities that include feature, cutoff, result-eligibility,
+    and imputation policies.
     """
 
     if not examples:
@@ -128,6 +137,8 @@ def build_model_dataset_from_examples(
     materialized = tuple(
         ModelExample(
             match_id=example.match_id,
+            target_available_at_iso=example.target_available_at.isoformat(),
+            target_availability_basis=example.target_availability_basis,
             target=example.target,
             row=materialize_feature_vector(
                 example.vector,
@@ -148,6 +159,7 @@ def build_model_dataset_from_examples(
     dataset_id = _dataset_id(
         feature_set_id=feature_set_id,
         cutoff_policy_id=cutoff_policy_id,
+        result_eligibility_policy_id=result_eligibility_policy_id,
         imputation_policy=imputation_policy,
         column_names=first_columns,
         examples=materialized,
@@ -157,6 +169,7 @@ def build_model_dataset_from_examples(
         dataset_id=dataset_id,
         feature_set_id=feature_set_id,
         cutoff_policy_id=cutoff_policy_id,
+        result_eligibility_policy_id=result_eligibility_policy_id,
         imputation_policy_id=imputation_policy.policy_id,
         column_names=first_columns,
         examples=materialized,
@@ -167,6 +180,7 @@ def _dataset_id(
     *,
     feature_set_id: str,
     cutoff_policy_id: str,
+    result_eligibility_policy_id: str,
     imputation_policy: ImputationPolicy,
     column_names: tuple[str, ...],
     examples: tuple[ModelExample, ...],
@@ -175,6 +189,7 @@ def _dataset_id(
         "schema_version": MODEL_DATASET_SCHEMA_VERSION,
         "feature_set_id": feature_set_id,
         "cutoff_policy_id": cutoff_policy_id,
+        "result_eligibility_policy_id": result_eligibility_policy_id,
         "imputation_policy": {
             "policy_id": imputation_policy.policy_id,
             "include_status_indicators": imputation_policy.include_status_indicators,
@@ -195,6 +210,8 @@ def _dataset_id(
             {
                 "match_id": example.match_id,
                 "prediction_time": example.row.prediction_time_iso,
+                "target_available_at": example.target_available_at_iso,
+                "target_availability_basis": example.target_availability_basis.value,
                 "target": example.target.value,
                 "values": [value for _, value in example.row.columns],
                 "applied_imputations": [
