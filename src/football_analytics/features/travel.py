@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from football_analytics.data.contracts import LeakageRisk, SourceMetadata
 from football_analytics.domain import GeographicPoint
@@ -230,7 +231,7 @@ def _resolve_location(
         VenueLocationObservation | TeamReferenceLocationObservation
     ],
     *,
-    cutoff: object,
+    cutoff: datetime,
 ) -> _ResolvedLocation:
     eligible = [
         observation
