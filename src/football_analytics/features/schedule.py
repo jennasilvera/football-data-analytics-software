@@ -14,7 +14,6 @@ from football_analytics.features.base import (
 )
 from football_analytics.features.history import team_history_before_cutoff
 
-
 SCHEDULE_FEATURE_VERSION = "schedule_rest_v1"
 
 
