@@ -7,7 +7,7 @@ scope remains official senior men's A-international football only.
 
 | Product area | Native V2 status | Next acceptance gate |
 |---|---|---|
-| Ingestion, validation, entity resolution | Canonical catalogs, tabular/legacy adapters, scope assessment, quarantine, snapshot hashes | Governed real-source adapters; explicit regulation/extra-time/shootout score basis; source freshness |
+| Ingestion, validation, entity resolution | Canonical catalogs, tabular/legacy adapters, scope assessment, quarantine, snapshot hashes, explicit score basis and regulation-only targets | Governed real-source adapters; separate period tallies and revisions; source freshness |
 | Temporal integrity | Provenance, cutoff-safe features, target availability and chronological folds | Historical revisions and actual publication-time datasets |
 | Team ratings | Elo migration/parity and snapshots | Glicko-style uncertainty, rating comparison and persisted history services |
 | Features | Form, rest, rankings, competition, travel, squad availability, market snapshots | Manager/manual intelligence, opponent adjustment, coverage monitoring and persistent feature store |
@@ -59,8 +59,8 @@ cutoffs, canonical IDs, training cutoff and known team histories are enforced.
 
 ## Planned implementation sequence
 
-1. **Target/source governance.** Extend domain and adapters with score-basis and
-   revision contracts; verify real sources against scope, license and timestamp
+1. **Source governance.** Explicit score-basis contracts now reject unknown and
+   non-regulation targets. Add revision contracts; verify real sources against scope, license and timestamp
    requirements. Test mixed score bases, late revisions and exact publication times.
 2. **Calibration and ensembles.** Add model implementations fitted only on nested
    or held-out temporal base predictions. Persist split/calibrator/base-model

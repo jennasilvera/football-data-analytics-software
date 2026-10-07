@@ -17,6 +17,10 @@ inputs are a results CSV, governed team and competition JSON catalogs, source ID
 timezone-aware ingestion time, one or more timezone-aware training cutoffs, and
 evaluation-window length. The CSV uses the retained legacy results schema:
 `date,home_team,away_team,home_score,away_score,tournament,neutral`.
+Scores must additionally have an explicit `score_basis` column, or a documented
+source-wide `--score-basis regulation_time` assertion. Missing labels default to
+unknown and stop native research. Mapped row labels cannot be overridden by the
+source assertion. See [score target contract](score_target_contract.md).
 
 The mandatory `--assert-senior-mens-a` flag is a source-level assertion that rows
 are official senior men's A-internationals. It is not an automatic verification
@@ -105,7 +109,7 @@ Metrics are recomputed from predictions and differences are descriptive; there i
 no automatic winner promotion or statistical significance claim. The JSON report
 contains all runs and the Markdown report contains the paired score table.
 
-Research report schema 2 adds `runs` and `comparison`. The existing top-level
+Research report schema 3 declares `target_policy_id` and retains `runs` and `comparison`. The existing top-level
 `backtest`, `calibration`, `manifest` and stdout `metrics` describe the first
 (reference) run. Model artifacts are listed separately in stdout. Every evaluated
 model gets an experiment manifest. Poisson score forecasts retain expected goals,

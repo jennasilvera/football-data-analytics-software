@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 
 import pandas as pd
@@ -13,6 +14,7 @@ from football_analytics.data.contracts import LeakageRisk
 from football_analytics.data.observations import MatchObservation
 from football_analytics.data.scope import GenderCategory, TeamLevel
 from football_analytics.domain import MatchStatus
+from football_analytics.domain.scores import ScoreBasis
 
 LEGACY_RESULTS_COLUMNS = TabularMatchColumns(
     match_date="date",
@@ -32,11 +34,13 @@ def build_legacy_mens_results_observations(
     source_id: str = "legacy_mens_international_results",
     source_version: str | None = None,
     legal_use_notes: str | None = None,
+    score_basis: ScoreBasis = ScoreBasis.UNKNOWN,
 ) -> list[MatchObservation]:
     """Adapt the current legacy historical-results schema into V2 observations."""
 
     policy = TabularSourcePolicy(
         source_id=source_id,
+        score_basis=score_basis,
         gender=GenderCategory.MEN,
         team_level=TeamLevel.SENIOR_A,
         official=True,
@@ -48,7 +52,10 @@ def build_legacy_mens_results_observations(
 
     return build_match_observations(
         frame,
-        columns=LEGACY_RESULTS_COLUMNS,
+        columns=replace(
+            LEGACY_RESULTS_COLUMNS,
+            score_basis="score_basis" if "score_basis" in frame.columns else None,
+        ),
         policy=policy,
         ingested_at=ingested_at,
     )

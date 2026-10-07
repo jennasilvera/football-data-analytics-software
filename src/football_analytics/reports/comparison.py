@@ -11,6 +11,7 @@ def render_model_comparison(comparison: ModelComparison) -> str:
         "",
         f"Reference run: `{comparison.reference_backtest_run_id}`.",
         "",
+        "Target: regulation time (including stoppage time); excludes extra time and shootouts.",
         "All models use the same training and evaluation matches and prediction cutoffs.",
         "Lower log loss, Brier score, and ranked probability score (RPS) are better.",
         "Negative deltas indicate a lower score than the reference.",

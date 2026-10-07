@@ -18,6 +18,10 @@ from football_analytics.data import CanonicalMatchRecord
 from football_analytics.data.contracts import ensure_utc
 from football_analytics.domain import Match, MatchStatus
 from football_analytics.domain.probabilities import OutcomeProbabilities
+from football_analytics.domain.scores import (
+    REGULATION_TARGET_POLICY_ID,
+    require_regulation_score,
+)
 from football_analytics.features.base import PredictionContext
 from football_analytics.features.history import DEFAULT_RESULT_ELIGIBILITY_POLICY
 from football_analytics.models.base import ModelFamily, ModelTrainingSpec
@@ -150,6 +154,7 @@ def goal_dataset_id(records: Sequence[CanonicalMatchRecord]) -> str:
     fixtures: set[tuple[object, ...]] = set()
     rows = []
     for record in sorted(records, key=lambda item: item.match.match_id):
+        require_regulation_score(record.score_basis, match_id=record.match.match_id)
         match = record.match
         identity = (
             match.match_date,
@@ -174,6 +179,7 @@ def goal_dataset_id(records: Sequence[CanonicalMatchRecord]) -> str:
                 "away": match.away_team_id,
                 "competition": match.competition_id,
                 "neutral": match.neutral,
+                "score_basis": record.score_basis.value,
                 "home_score": record.home_score,
                 "away_score": record.away_score,
                 "target_available_at": eligible.eligible_at.isoformat(),
@@ -183,7 +189,9 @@ def goal_dataset_id(records: Sequence[CanonicalMatchRecord]) -> str:
                 "source_version": record.metadata.source_version,
             }
         )
-    return _digest("goal_dataset_", {"schema_version": 1, "rows": rows})
+    return _digest("goal_dataset_", {
+        "schema_version": 2, "target_policy_id": REGULATION_TARGET_POLICY_ID, "rows": rows
+    })
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,13 +216,13 @@ class PoissonModel:
     config: PoissonConfig
     global_goals_per_team_match: float
     teams: tuple[TeamGoalStrength, ...]
-    schema_version: int = 1
+    schema_version: int = 2
 
     def __post_init__(self) -> None:
         object.__setattr__(
             self, "training_cutoff", ensure_utc(self.training_cutoff, "training_cutoff")
         )
-        if self.schema_version != 1 or not self.training_dataset_id.startswith("goal_dataset_"):
+        if self.schema_version != 2 or not self.training_dataset_id.startswith("goal_dataset_"):
             raise ValueError("Unsupported Poisson model schema or dataset identity.")
         if (
             not math.isfinite(self.global_goals_per_team_match)
@@ -230,6 +238,7 @@ class PoissonModel:
     def _payload(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
+            "target_policy_id": REGULATION_TARGET_POLICY_ID,
             "training_dataset_id": self.training_dataset_id,
             "training_cutoff": self.training_cutoff.isoformat(),
             "config": asdict(self.config),
@@ -248,6 +257,8 @@ class PoissonModel:
             != DEFAULT_RESULT_ELIGIBILITY_POLICY.policy_id
         ):
             raise ValueError("Unsupported result eligibility policy.")
+        if payload.get("target_policy_id") != REGULATION_TARGET_POLICY_ID:
+            raise ValueError("Unsupported score target policy.")
         return cls(
             model_id=payload["model_id"],
             training_dataset_id=payload["training_dataset_id"],
@@ -315,7 +326,7 @@ def fit_poisson(
         for team, (n, goals_for, goals_against) in sorted(stats.items())
     )
     payload = {
-        "schema_version": 1,
+        "schema_version": 2, "target_policy_id": REGULATION_TARGET_POLICY_ID,
         "training_dataset_id": dataset_id,
         "training_cutoff": cutoff.isoformat(),
         "config": asdict(config),

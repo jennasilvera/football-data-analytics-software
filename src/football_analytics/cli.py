@@ -17,6 +17,7 @@ from football_analytics.data import load_canonical_catalogs, save_normalization_
 from football_analytics.data.adapters.legacy import build_legacy_mens_results_observations
 from football_analytics.data.contracts import ensure_utc
 from football_analytics.domain import Match
+from football_analytics.domain.scores import REGULATION_TARGET_POLICY_ID, ScoreBasis
 from football_analytics.evaluation import ExpandingWindowPolicy, RollingWindowPolicy
 from football_analytics.experiments import JsonExperimentRegistry
 from football_analytics.models import hist_gradient_boosting_spec, logistic_regression_spec
@@ -73,6 +74,11 @@ def main(argv: list[str] | None = None) -> None:
         required=True,
         help="Assert that the input source contains official senior men's A matches",
     )
+    research.add_argument(
+        "--score-basis", choices=[basis.value for basis in ScoreBasis],
+        default=ScoreBasis.UNKNOWN.value,
+        help="Assert source score basis when no per-row score_basis column exists",
+    )
     research.add_argument("--cutoff", type=_timestamp, action="append", required=True)
     research.add_argument("--evaluation-days", type=int, required=True)
     research.add_argument("--training-days", type=int, help="Use a bounded rolling window")
@@ -118,7 +124,8 @@ def main(argv: list[str] | None = None) -> None:
             forecast = model.predict_match(match, prediction_time=args.prediction_time)
             path = _save_report(
                 {
-                    "schema_version": 1,
+                    "schema_version": 2,
+                    "target_policy_id": REGULATION_TARGET_POLICY_ID,
                     "kind": "poisson_forecast",
                     "model_id": model.model_id,
                     "training_dataset_id": model.training_dataset_id,
@@ -148,6 +155,7 @@ def main(argv: list[str] | None = None) -> None:
             source_id=args.source_id,
             source_version=source_sha256,
             legal_use_notes=args.legal_use_notes,
+            score_basis=ScoreBasis(args.score_basis),
         )
         policy: ExpandingWindowPolicy | RollingWindowPolicy
         if args.training_days is None:
@@ -198,11 +206,13 @@ def main(argv: list[str] | None = None) -> None:
             )
         result = runs[0]
         payload: dict[str, object] = {
-            "schema_version": 2,
+            "schema_version": 3,
+            "target_policy_id": REGULATION_TARGET_POLICY_ID,
             "source_sha256": source_sha256,
             "source_id": args.source_id,
             "ingested_at": args.ingested_at,
             "scope_assertion": "official_senior_mens_a",
+            "source_score_basis_assertion": args.score_basis,
             "legal_use_notes": args.legal_use_notes,
             "catalogs": asdict(catalogs),
             "split_policy": asdict(policy),

@@ -11,6 +11,7 @@ from football_analytics.data.contracts import LeakageRisk, SourceMetadata, ensur
 from football_analytics.data.observations import MatchObservation
 from football_analytics.data.scope import GenderCategory, TeamLevel
 from football_analytics.domain import MatchStatus
+from football_analytics.domain.scores import ScoreBasis
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +30,7 @@ class TabularMatchColumns:
     source_match_id: str | None = None
     available_at: str | None = None
     venue_name: str | None = None
+    score_basis: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,8 +46,11 @@ class TabularSourcePolicy:
     source_version: str | None = None
     legal_use_notes: str | None = None
     status_map: Mapping[str, MatchStatus] | None = None
+    score_basis: ScoreBasis = ScoreBasis.UNKNOWN
 
     def __post_init__(self) -> None:
+        if not isinstance(self.score_basis, ScoreBasis):
+            raise TypeError("score_basis must be a ScoreBasis.")
         source_id = self.source_id.strip()
         if not source_id:
             raise ValueError("source_id must not be blank.")
@@ -81,6 +86,7 @@ def build_match_observations(
         columns.source_match_id,
         columns.available_at,
         columns.venue_name,
+        columns.score_basis,
     ):
         if optional is not None:
             required.add(optional)
@@ -169,6 +175,7 @@ def build_match_observations(
                 ),
                 home_score=home_score,
                 away_score=away_score,
+                score_basis=_score_basis(row, columns, policy),
                 venue_name=venue_name,
             )
         )
@@ -276,3 +283,16 @@ def _parse_bool(value: object) -> bool:
         return False
 
     raise ValueError(f"Could not parse boolean value: {value!r}")
+
+
+def _score_basis(
+    row: pd.Series, columns: TabularMatchColumns, policy: TabularSourcePolicy
+) -> ScoreBasis:
+    if columns.score_basis is None:
+        return policy.score_basis
+    raw = _optional_text(row[columns.score_basis])
+    # A mapped row is authoritative; blanks remain unknown, never filled by assertion.
+    basis = ScoreBasis(raw) if raw is not None else ScoreBasis.UNKNOWN
+    if policy.score_basis is not ScoreBasis.UNKNOWN and basis is not policy.score_basis:
+        raise ValueError("Row score_basis conflicts with the source score-basis assertion.")
+    return basis

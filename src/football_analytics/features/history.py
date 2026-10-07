@@ -8,6 +8,7 @@ from enum import StrEnum
 from football_analytics.data.contracts import ensure_utc
 from football_analytics.data.normalization import CanonicalMatchRecord
 from football_analytics.domain import MatchStatus
+from football_analytics.domain.scores import require_regulation_score
 
 
 class ResultAvailabilityError(ValueError):
@@ -139,7 +140,10 @@ def completed_record_is_before_cutoff(
     if record.home_score is None or record.away_score is None:
         return False
 
-    return policy.eligibility_for(record).eligible_at <= cutoff_utc
+    eligible = policy.eligibility_for(record).eligible_at <= cutoff_utc
+    if eligible:
+        require_regulation_score(record.score_basis, match_id=record.match.match_id)
+    return eligible
 
 
 def team_history_before_cutoff(

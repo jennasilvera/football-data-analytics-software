@@ -3,7 +3,7 @@
 ## Status and intended use
 
 Model family: `poisson`. Specification: `independent_poisson_v1`.
-Implementation version: `legacy_parity_v1`. Artifact schema: 1.
+Implementation version: `legacy_parity_v1`. Artifact schema: 2.
 
 This is a migrated research baseline for senior men's national-team football.
 It estimates goal-count rates, scoreline probabilities, and three-way outcome
@@ -92,13 +92,14 @@ weights, squad input, low-score dependence correction, or posterior uncertainty.
 Sparse and imbalanced national-team schedules can distort raw attack/defence
 ratios. Appearances are retained to expose sparse fitted histories.
 
-The target is the **score supplied by the source**. Regulation-time, extra-time,
-and shootout semantics must be standardized by a governed adapter before a
-real-data deployment or market comparison. The current CSV adapter cannot prove
-that distinction. Next-day availability is a research assumption, not evidence
+The target is **regulation time including stoppage time**, excluding extra time
+and shootouts. Native research rejects unknown or non-regulation score bases;
+adapters preserve the declared basis for audit. Source assertions still require
+independent verification; a label does not prove provider accuracy. See
+[score target contract](score_target_contract.md). Next-day availability is a research assumption, not evidence
 of the source's publication history or absence of retrospective corrections.
 
-Future work should assess shrinkage and time decay, regulation-time target
+Future work should assess shrinkage and time decay, source revision
 contracts, low-score dependence, nested temporal calibration and ensemble
 training, interval coverage, and licensed-source evaluation. A more complex
 model must beat the simple training-only class-frequency benchmark on held-out

@@ -82,6 +82,7 @@ The integrated foundation currently includes:
 - Competition, squad availability, travel, and market snapshot feature providers
 - Native class-frequency, logistic, histogram gradient boosting, and Poisson models
 - Paired model comparison with identical training and evaluation samples
+- Explicit regulation-time score targets; unknown, extra-time and shootout scores fail closed
 - Portable Poisson model artifacts and scoreline forecast replay
 - Target-availability-safe temporal backtesting and calibration diagnostics
 - Content-addressed experiment manifests and a JSON registry
