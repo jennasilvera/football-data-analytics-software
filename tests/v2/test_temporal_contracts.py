@@ -68,6 +68,21 @@ def test_post_match_only_observation_is_rejected() -> None:
         )
 
 
+def test_unknown_availability_is_retained_but_fails_pre_match_check() -> None:
+    metadata = SourceMetadata(
+        source="historical_archive",
+        ingested_at=datetime(2026, 10, 7, tzinfo=UTC),
+        available_at=None,
+        leakage_risk=LeakageRisk.REVIEW,
+    )
+    record = PointInTimeRecord(value={"archived_rank": 3}, metadata=metadata)
+
+    assert not record.is_available_at(KICKOFF)
+
+    with pytest.raises(TemporalIntegrityError, match="availability is unknown"):
+        record.require_pre_match(kickoff_at=KICKOFF)
+
+
 def test_prediction_after_kickoff_is_rejected() -> None:
     metadata = _metadata(available_at=KICKOFF - timedelta(hours=2))
 

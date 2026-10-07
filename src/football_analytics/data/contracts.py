@@ -32,11 +32,16 @@ def ensure_utc(value: datetime, field_name: str = "timestamp") -> datetime:
 
 @dataclass(frozen=True, slots=True)
 class SourceMetadata:
-    """Provenance and temporal metadata for one source observation."""
+    """Provenance and temporal metadata for one source observation.
+
+    `available_at=None` is intentional and means the source does not provide a
+    defensible historical availability timestamp. Such observations may be
+    retained for archival/post-match uses but cannot pass pre-match validation.
+    """
 
     source: str
-    available_at: datetime
     ingested_at: datetime
+    available_at: datetime | None = None
     source_record_id: str | None = None
     source_version: str | None = None
     event_time: datetime | None = None
@@ -49,15 +54,17 @@ class SourceMetadata:
         if not source:
             raise ValueError("source must not be blank.")
 
-        available_at = ensure_utc(self.available_at, "available_at")
         ingested_at = ensure_utc(self.ingested_at, "ingested_at")
-
-        if ingested_at < available_at:
-            raise ValueError("ingested_at cannot be earlier than available_at.")
-
         object.__setattr__(self, "source", source)
-        object.__setattr__(self, "available_at", available_at)
         object.__setattr__(self, "ingested_at", ingested_at)
+
+        if self.available_at is not None:
+            available_at = ensure_utc(self.available_at, "available_at")
+
+            if ingested_at < available_at:
+                raise ValueError("ingested_at cannot be earlier than available_at.")
+
+            object.__setattr__(self, "available_at", available_at)
 
         if self.event_time is not None:
             object.__setattr__(
@@ -81,7 +88,7 @@ def assert_pre_match_available(
     kickoff_at: datetime,
     prediction_time: datetime | None = None,
 ) -> None:
-    """Enforce that an observation was usable for a pre-match prediction."""
+    """Enforce that an observation was demonstrably usable before prediction."""
 
     kickoff = ensure_utc(kickoff_at, "kickoff_at")
     cutoff = ensure_utc(
@@ -95,6 +102,11 @@ def assert_pre_match_available(
     if metadata.leakage_risk is LeakageRisk.POST_MATCH_ONLY:
         raise TemporalIntegrityError(
             "Post-match-only observations cannot be used in a pre-match forecast."
+        )
+
+    if metadata.available_at is None:
+        raise TemporalIntegrityError(
+            "Observation availability is unknown and cannot be used pre-match."
         )
 
     if metadata.available_at > cutoff:
@@ -111,9 +123,13 @@ class PointInTimeRecord(Generic[T]):
     metadata: SourceMetadata
 
     def is_available_at(self, cutoff: datetime) -> bool:
-        """Return whether the observation was available by a cutoff."""
+        """Return whether availability is known and no later than a cutoff."""
 
         cutoff_utc = ensure_utc(cutoff, "cutoff")
+
+        if self.metadata.available_at is None:
+            return False
+
         return self.metadata.available_at <= cutoff_utc
 
     def require_pre_match(
