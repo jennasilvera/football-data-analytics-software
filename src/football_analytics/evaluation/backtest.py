@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from football_analytics.domain import MatchOutcome
+from football_analytics.domain.scores import REGULATION_TARGET_POLICY_ID
 from football_analytics.evaluation.metrics import (
     EvaluationMetrics,
     ScoredPrediction,
@@ -75,6 +76,7 @@ class TemporalBacktestResult:
     folds: tuple[BacktestFoldResult, ...]
     skipped_folds: tuple[SkippedTemporalFold, ...]
     aggregate_metrics: EvaluationMetrics
+    target_policy_id: str = REGULATION_TARGET_POLICY_ID
 
     @property
     def prediction_count(self) -> int:
@@ -222,6 +224,7 @@ def _backtest_run_id(
     folds: tuple[BacktestFoldResult, ...],
 ) -> str:
     payload = {
+        "target_policy_id": REGULATION_TARGET_POLICY_ID,
         "split_policy_id": split_policy_id,
         "model_spec": {
             "spec_id": model_spec.spec_id,

@@ -7,6 +7,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 
+from football_analytics.domain.scores import REGULATION_TARGET_POLICY_ID
 from football_analytics.evaluation.backtest import TemporalBacktestResult
 from football_analytics.evaluation.metrics import (
     EvaluationMetrics,
@@ -31,6 +32,7 @@ class ModelComparison:
     reference_backtest_run_id: str
     paired_prediction_count: int
     rows: tuple[ModelComparisonRow, ...]
+    target_policy_id: str = REGULATION_TARGET_POLICY_ID
 
 
 def compare_backtests(
@@ -69,6 +71,8 @@ def compare_backtests(
     reference_training = training_sample(reference)
     metrics_by_run = {}
     for run in backtests:
+        if run.target_policy_id != REGULATION_TARGET_POLICY_ID:
+            raise ValueError("Models must use the regulation-time score target policy.")
         if sample(run) != reference_sample or training_sample(run) != reference_training:
             raise ValueError(
                 "Models must use identical match, outcome, prediction-time and fold samples."

@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from football_analytics.domain import MatchOutcome
+from football_analytics.domain.scores import REGULATION_TARGET_POLICY_ID
 from football_analytics.features.dataset import (
     HistoricalFeatureDataset,
     HistoricalFeatureExample,
@@ -17,7 +18,7 @@ from football_analytics.features.materialization import (
     materialize_feature_vector,
 )
 
-MODEL_DATASET_SCHEMA_VERSION = 2
+MODEL_DATASET_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,9 +47,12 @@ class ModelDataset:
     imputation_policy_id: str
     column_names: tuple[str, ...]
     examples: tuple[ModelExample, ...]
+    target_policy_id: str = REGULATION_TARGET_POLICY_ID
     schema_version: int = MODEL_DATASET_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
+        if self.target_policy_id != REGULATION_TARGET_POLICY_ID:
+            raise ValueError("Unsupported score target policy.")
         if not self.dataset_id.strip():
             raise ValueError("dataset_id must not be blank.")
         if not self.feature_set_id.strip():
@@ -187,6 +191,7 @@ def _dataset_id(
 ) -> str:
     payload = {
         "schema_version": MODEL_DATASET_SCHEMA_VERSION,
+        "target_policy_id": REGULATION_TARGET_POLICY_ID,
         "feature_set_id": feature_set_id,
         "cutoff_policy_id": cutoff_policy_id,
         "result_eligibility_policy_id": result_eligibility_policy_id,

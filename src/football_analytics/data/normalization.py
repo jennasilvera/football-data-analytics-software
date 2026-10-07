@@ -13,6 +13,7 @@ from football_analytics.data.entity_resolution import (
 from football_analytics.data.observations import MatchObservation
 from football_analytics.data.scope import ScopeDecision, assess_senior_mens_a_scope
 from football_analytics.domain import Match
+from football_analytics.domain.scores import ScoreBasis
 
 
 class NormalizationDecision(StrEnum):
@@ -38,6 +39,11 @@ class CanonicalMatchRecord:
     home_resolution_method: str | None = None
     away_resolution_method: str | None = None
     competition_resolution_method: str | None = None
+    score_basis: ScoreBasis = ScoreBasis.UNKNOWN
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.score_basis, ScoreBasis):
+            raise TypeError("score_basis must be a ScoreBasis.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +147,7 @@ def normalize_match_observation(
         source_competition_name=observation.competition_name,
         home_score=observation.home_score,
         away_score=observation.away_score,
+        score_basis=observation.score_basis,
         home_resolution_method=home.matched_by,
         away_resolution_method=away.matched_by,
         competition_resolution_method=competition.matched_by,

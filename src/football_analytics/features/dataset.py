@@ -7,6 +7,7 @@ from datetime import UTC, datetime, time, timedelta
 from football_analytics.data.contracts import ensure_utc
 from football_analytics.data.normalization import CanonicalMatchRecord
 from football_analytics.domain import Match, MatchOutcome, MatchStatus
+from football_analytics.domain.scores import require_regulation_score
 from football_analytics.features.base import (
     FeatureProvider,
     FeatureVector,
@@ -179,6 +180,7 @@ def build_historical_feature_dataset(
     examples: list[HistoricalFeatureExample] = []
 
     for record in completed:
+        require_regulation_score(record.score_basis, match_id=record.match.match_id)
         prediction_time = cutoff_policy.cutoff_for(record.match)
         target_eligibility = result_eligibility_policy.eligibility_for(record)
         context = PredictionContext(

@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from football_analytics.domain.scores import REGULATION_TARGET_POLICY_ID
 from football_analytics.evaluation.backtest import TemporalBacktestResult
 from football_analytics.evaluation.calibration import (
     CalibrationReport,
@@ -15,7 +16,7 @@ from football_analytics.evaluation.metrics import (
     ScoredPrediction,
 )
 
-EXPERIMENT_MANIFEST_SCHEMA_VERSION = 1
+EXPERIMENT_MANIFEST_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,9 +46,12 @@ class ExperimentManifest:
     calibration_n_bins: int | None = None
     macro_expected_calibration_error: float | None = None
     code_revision: str | None = None
+    target_policy_id: str = REGULATION_TARGET_POLICY_ID
     schema_version: int = EXPERIMENT_MANIFEST_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
+        if self.target_policy_id != REGULATION_TARGET_POLICY_ID:
+            raise ValueError("Unsupported score target policy.")
         if self.schema_version != EXPERIMENT_MANIFEST_SCHEMA_VERSION:
             raise ValueError("Unsupported experiment manifest schema version.")
 
@@ -167,6 +171,10 @@ class ExperimentManifest:
     def from_dict(cls, payload: dict[str, Any]) -> ExperimentManifest:
         """Load and validate a manifest from a JSON-compatible dictionary."""
 
+        if payload.get("schema_version") != EXPERIMENT_MANIFEST_SCHEMA_VERSION:
+            raise ValueError("Unsupported experiment manifest schema version.")
+        if payload.get("target_policy_id") != REGULATION_TARGET_POLICY_ID:
+            raise ValueError("Unsupported score target policy.")
         metrics_payload = payload["aggregate_metrics"]
         if not isinstance(metrics_payload, dict):
             raise ValueError("aggregate_metrics must be a JSON object.")
@@ -185,6 +193,7 @@ class ExperimentManifest:
 
         return cls(
             schema_version=int(payload["schema_version"]),
+            target_policy_id=str(payload["target_policy_id"]),
             experiment_id=str(payload["experiment_id"]),
             backtest_run_id=str(payload["backtest_run_id"]),
             calibration_report_id=_optional_str(
@@ -334,6 +343,8 @@ def build_experiment_manifest(
         code_revision=normalized_revision,
     )
 
+    if backtest.target_policy_id != REGULATION_TARGET_POLICY_ID:
+        raise ValueError("Unsupported score target policy.")
     return ExperimentManifest(
         experiment_id=_experiment_id(identity),
         backtest_run_id=backtest.backtest_run_id,
@@ -389,6 +400,7 @@ def _identity_payload(
 ) -> dict[str, Any]:
     return {
         "schema_version": schema_version,
+        "target_policy_id": REGULATION_TARGET_POLICY_ID,
         "backtest_run_id": backtest_run_id,
         "calibration_report_id": calibration_report_id,
         "model_spec_id": model_spec_id,

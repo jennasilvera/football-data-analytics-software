@@ -6,6 +6,7 @@ import pytest
 
 from football_analytics.data import CanonicalMatchRecord, LeakageRisk, SourceMetadata
 from football_analytics.domain import Match, MatchStatus
+from football_analytics.domain.scores import ScoreBasis
 from football_analytics.ratings import (
     LEGACY_ELO_MODEL_ID,
     LegacyEloRatingEngine,
@@ -16,6 +17,7 @@ from wc_forecast.models.elo import EloModel
 
 def _rating_input_record() -> CanonicalMatchRecord:
     return CanonicalMatchRecord(
+        score_basis=ScoreBasis.REGULATION_TIME,
         match=Match(
             match_id="match-arg-fra",
             match_date=date(2022, 12, 18),

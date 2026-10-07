@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from football_analytics.data.normalization import CanonicalMatchRecord
 from football_analytics.domain import MatchStatus
+from football_analytics.domain.scores import require_regulation_score
 from football_analytics.ratings.base import (
     CompletedMatchRatingInput,
     RatingPrediction,
@@ -124,6 +125,7 @@ def rating_input_from_record(
     if record.home_score is None or record.away_score is None:
         raise ValueError("Rating updates require final scores.")
 
+    require_regulation_score(record.score_basis, match_id=record.match.match_id)
     return CompletedMatchRatingInput(
         match_id=record.match.match_id,
         match_date=record.match.match_date,

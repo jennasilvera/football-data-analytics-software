@@ -6,6 +6,7 @@ from datetime import date, datetime
 from football_analytics.data.contracts import SourceMetadata, ensure_utc
 from football_analytics.data.scope import GenderCategory, TeamLevel
 from football_analytics.domain import MatchStatus
+from football_analytics.domain.scores import ScoreBasis
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,8 +32,11 @@ class MatchObservation:
     home_score: int | None = None
     away_score: int | None = None
     venue_name: str | None = None
+    score_basis: ScoreBasis = ScoreBasis.UNKNOWN
 
     def __post_init__(self) -> None:
+        if not isinstance(self.score_basis, ScoreBasis):
+            raise TypeError("score_basis must be a ScoreBasis.")
         source_match_id = self.source_match_id.strip()
         home_team_name = self.home_team_name.strip()
         away_team_name = self.away_team_name.strip()

@@ -6,6 +6,7 @@ import pytest
 
 from football_analytics.data import CanonicalMatchRecord, LeakageRisk, SourceMetadata
 from football_analytics.domain import Match, MatchStatus
+from football_analytics.domain.scores import ScoreBasis
 from football_analytics.features import (
     DEFAULT_RESULT_ELIGIBILITY_POLICY,
     ResultAvailabilityError,
@@ -22,6 +23,7 @@ def _record(
     available_at: datetime | None = None,
 ) -> CanonicalMatchRecord:
     return CanonicalMatchRecord(
+        score_basis=ScoreBasis.REGULATION_TIME,
         match=Match(
             match_id=match_id,
             match_date=match_date,
