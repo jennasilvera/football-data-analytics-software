@@ -12,14 +12,22 @@ from football_analytics.ratings.legacy_elo import (
     LegacyEloRatingEngine,
     rating_input_from_record,
 )
+from football_analytics.ratings.replay import (
+    AmbiguousRatingOrderError,
+    RatingReplayResult,
+    replay_completed_matches,
+)
 
 __all__ = [
+    "AmbiguousRatingOrderError",
     "CompletedMatchRatingInput",
     "LEGACY_ELO_MODEL_ID",
     "LegacyEloRatingEngine",
     "RatingEngine",
     "RatingPrediction",
+    "RatingReplayResult",
     "RatingSnapshot",
     "RatingUpdate",
     "rating_input_from_record",
+    "replay_completed_matches",
 ]
