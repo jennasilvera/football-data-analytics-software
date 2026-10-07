@@ -63,7 +63,10 @@ class TemporalBacktestResult:
     backtest_run_id: str
     split_policy_id: str
     model_spec_id: str
+    model_family: str
     model_version: str
+    model_random_seed: int
+    model_parameters: tuple[tuple[str, bool | int | float | str], ...]
     feature_set_id: str
     cutoff_policy_id: str
     result_eligibility_policy_id: str
@@ -124,7 +127,10 @@ def run_temporal_backtest(
         backtest_run_id=backtest_run_id,
         split_policy_id=fold_report.policy_id,
         model_spec_id=model_spec.spec_id,
+        model_family=model_spec.family.value,
         model_version=model_spec.model_version,
+        model_random_seed=model_spec.random_seed,
+        model_parameters=model_spec.parameters,
         feature_set_id=fold_report.source_feature_set_id,
         cutoff_policy_id=fold_report.source_cutoff_policy_id,
         result_eligibility_policy_id=(
