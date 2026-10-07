@@ -79,6 +79,7 @@ class ModelTrainingMetadata:
     dataset_id: str
     feature_set_id: str
     cutoff_policy_id: str
+    result_eligibility_policy_id: str
     imputation_policy_id: str
     n_examples: int
     feature_names: tuple[str, ...]
@@ -141,6 +142,7 @@ def training_metadata_for(
         dataset_id=dataset.dataset_id,
         feature_set_id=dataset.feature_set_id,
         cutoff_policy_id=dataset.cutoff_policy_id,
+        result_eligibility_policy_id=dataset.result_eligibility_policy_id,
         imputation_policy_id=dataset.imputation_policy_id,
         n_examples=len(dataset.examples),
         feature_names=dataset.column_names,
