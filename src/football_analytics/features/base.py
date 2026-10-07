@@ -27,6 +27,7 @@ class FeatureMissingReason(StrEnum):
     UPSTREAM_UNAVAILABLE = "upstream_unavailable"
     STALE = "stale"
     TEMPORAL_INTEGRITY = "temporal_integrity"
+    TEMPORAL_PRECISION = "temporal_precision"
     NOT_APPLICABLE = "not_applicable"
     UNKNOWN = "unknown"
 
