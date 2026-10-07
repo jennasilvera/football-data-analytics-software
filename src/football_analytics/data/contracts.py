@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 
+
 class LeakageRisk(StrEnum):
     """How an observation may be used by pre-match forecasting code."""
 

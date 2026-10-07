@@ -23,7 +23,6 @@ from football_analytics.domain import (
     Team,
 )
 
-
 MATCH_DATE = date(2026, 11, 14)
 KICKOFF = datetime(2026, 11, 14, 20, 0, tzinfo=UTC)
 
