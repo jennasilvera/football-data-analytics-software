@@ -7,7 +7,6 @@ import pandas as pd
 from football_analytics.data.batch import BatchNormalizationReport
 from football_analytics.data.normalization import CanonicalMatchRecord
 
-
 NORMALIZED_COLUMNS = [
     "match_id",
     "match_date",

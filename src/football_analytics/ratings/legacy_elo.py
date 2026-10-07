@@ -15,7 +15,6 @@ from wc_forecast.models.elo import (
     EloModel,
 )
 
-
 LEGACY_ELO_MODEL_ID = "legacy_elo_v1"
 
 

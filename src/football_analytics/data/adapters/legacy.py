@@ -14,7 +14,6 @@ from football_analytics.data.observations import MatchObservation
 from football_analytics.data.scope import GenderCategory, TeamLevel
 from football_analytics.domain import MatchStatus
 
-
 LEGACY_RESULTS_COLUMNS = TabularMatchColumns(
     match_date="date",
     home_team="home_team",

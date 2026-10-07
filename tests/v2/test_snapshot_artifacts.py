@@ -13,8 +13,8 @@ from football_analytics.data import (
     TeamEntityResolver,
     TeamLevel,
     dataframe_snapshot,
-    normalize_match_batch,
     normalization_frames,
+    normalize_match_batch,
 )
 from football_analytics.domain import Competition, CompetitionKind, MatchStatus, Team
 
