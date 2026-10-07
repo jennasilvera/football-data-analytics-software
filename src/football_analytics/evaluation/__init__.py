@@ -1,5 +1,12 @@
 """Model-agnostic probability and evaluation contracts."""
 
+from football_analytics.evaluation.backtest import (
+    BacktestFoldResult,
+    BacktestPrediction,
+    ModelTrainer,
+    TemporalBacktestResult,
+    run_temporal_backtest,
+)
 from football_analytics.evaluation.metrics import (
     EvaluationMetrics,
     ScoredPrediction,
@@ -22,13 +29,17 @@ from football_analytics.evaluation.splits import (
 )
 
 __all__ = [
+    "BacktestFoldResult",
+    "BacktestPrediction",
     "EvaluationMetrics",
     "ExpandingWindowPolicy",
+    "ModelTrainer",
     "OutcomeProbabilities",
     "RollingWindowPolicy",
     "ScoredPrediction",
     "SkippedTemporalFold",
     "TemporalBacktestFold",
+    "TemporalBacktestResult",
     "TemporalFoldBuildReport",
     "TemporalFoldSkipReason",
     "accuracy",
@@ -38,4 +49,5 @@ __all__ = [
     "log_loss",
     "multiclass_brier_score",
     "ranked_probability_score",
+    "run_temporal_backtest",
 ]
