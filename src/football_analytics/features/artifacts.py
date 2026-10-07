@@ -15,7 +15,6 @@ from football_analytics.features.base import (
     FeatureVector,
 )
 
-
 FEATURE_VECTOR_ARTIFACT_SCHEMA_VERSION = 1
 
 
