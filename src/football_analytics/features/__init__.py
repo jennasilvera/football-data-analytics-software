@@ -11,7 +11,7 @@ from football_analytics.features.base import (
     PredictionContext,
     build_feature_vector,
 )
-from football_analytics.features.rating import RatingFeatureProvider
+from football_analytics.features.rating import LegacyEloFeatureProvider
 
 __all__ = [
     "FeatureDefinition",
@@ -21,7 +21,7 @@ __all__ = [
     "FeatureStatus",
     "FeatureValue",
     "FeatureVector",
+    "LegacyEloFeatureProvider",
     "PredictionContext",
-    "RatingFeatureProvider",
     "build_feature_vector",
 ]
