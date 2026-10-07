@@ -79,8 +79,6 @@ class TemporalBacktestResult:
 def run_temporal_backtest(
     *,
     fold_report: TemporalFoldBuildReport,
-    feature_set_id: str,
-    cutoff_policy_id: str,
     imputation_policy: ImputationPolicy,
     model_spec: ModelTrainingSpec,
     trainer: ModelTrainer,
@@ -96,8 +94,8 @@ def run_temporal_backtest(
     for fold in fold_report.folds:
         fold_result, scored = _run_fold(
             fold=fold,
-            feature_set_id=feature_set_id,
-            cutoff_policy_id=cutoff_policy_id,
+            feature_set_id=fold_report.source_feature_set_id,
+            cutoff_policy_id=fold_report.source_cutoff_policy_id,
             imputation_policy=imputation_policy,
             model_spec=model_spec,
             trainer=trainer,
@@ -109,8 +107,8 @@ def run_temporal_backtest(
     backtest_run_id = _backtest_run_id(
         split_policy_id=fold_report.policy_id,
         model_spec=model_spec,
-        feature_set_id=feature_set_id,
-        cutoff_policy_id=cutoff_policy_id,
+        feature_set_id=fold_report.source_feature_set_id,
+        cutoff_policy_id=fold_report.source_cutoff_policy_id,
         imputation_policy_id=imputation_policy.policy_id,
         folds=tuple(fold_results),
     )
@@ -120,8 +118,8 @@ def run_temporal_backtest(
         split_policy_id=fold_report.policy_id,
         model_spec_id=model_spec.spec_id,
         model_version=model_spec.model_version,
-        feature_set_id=feature_set_id,
-        cutoff_policy_id=cutoff_policy_id,
+        feature_set_id=fold_report.source_feature_set_id,
+        cutoff_policy_id=fold_report.source_cutoff_policy_id,
         imputation_policy_id=imputation_policy.policy_id,
         folds=tuple(fold_results),
         skipped_folds=fold_report.skipped,
@@ -139,14 +137,14 @@ def _run_fold(
     trainer: ModelTrainer,
 ) -> tuple[BacktestFoldResult, tuple[ScoredPrediction, ...]]:
     train_dataset = build_model_dataset_from_examples(
-        feature_set_id=feature_set_id,
-        cutoff_policy_id=cutoff_policy_id,
+        feature_set_id=fold_report.source_feature_set_id,
+        cutoff_policy_id=fold_report.source_cutoff_policy_id,
         examples=fold.train,
         imputation_policy=imputation_policy,
     )
     evaluation_dataset = build_model_dataset_from_examples(
-        feature_set_id=feature_set_id,
-        cutoff_policy_id=cutoff_policy_id,
+        feature_set_id=fold_report.source_feature_set_id,
+        cutoff_policy_id=fold_report.source_cutoff_policy_id,
         examples=fold.test,
         imputation_policy=imputation_policy,
     )
