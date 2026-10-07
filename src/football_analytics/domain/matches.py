@@ -21,6 +21,14 @@ class MatchTimePrecision(StrEnum):
     EXACT_KICKOFF = "exact_kickoff"
 
 
+class MatchOutcome(StrEnum):
+    """Three-way outcome target for a completed football match."""
+
+    HOME_WIN = "home_win"
+    DRAW = "draw"
+    AWAY_WIN = "away_win"
+
+
 def _utc_datetime(value: datetime, field_name: str) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError(f"{field_name} must be timezone-aware.")
@@ -32,7 +40,7 @@ def _utc_datetime(value: datetime, field_name: str) -> datetime:
 class Match:
     """Canonical senior men's A-international fixture or result.
 
-    Historical sources often provide only a match date.  Exact kickoff time is
+    Historical sources often provide only a match date. Exact kickoff time is
     therefore optional and its absence is represented explicitly rather than by
     inventing a midnight timestamp.
     """

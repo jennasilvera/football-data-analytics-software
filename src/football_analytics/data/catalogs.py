@@ -45,10 +45,18 @@ def load_canonical_catalogs(
     team_payload = _load_json(teams_path)
     competition_payload = _load_json(competitions_path)
 
-    teams = tuple(_team_from_dict(item) for item in team_payload.get("teams", []))
+    team_items = team_payload.get("teams", [])
+    competition_items = competition_payload.get("competitions", [])
+
+    if not isinstance(team_items, list):
+        raise ValueError("teams must be a JSON array.")
+    if not isinstance(competition_items, list):
+        raise ValueError("competitions must be a JSON array.")
+
+    teams = tuple(_team_from_dict(item) for item in team_items)
     competitions = tuple(
         _competition_from_dict(item)
-        for item in competition_payload.get("competitions", [])
+        for item in competition_items
     )
     team_aliases = _aliases(team_payload.get("aliases", {}), "team")
     competition_aliases = _aliases(

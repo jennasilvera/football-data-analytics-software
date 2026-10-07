@@ -18,6 +18,14 @@ from football_analytics.features.base import (
     build_feature_vector,
     feature_set_id_for_definitions,
 )
+from football_analytics.features.dataset import (
+    DEFAULT_HISTORICAL_CUTOFF_POLICY,
+    HistoricalFeatureDataset,
+    HistoricalFeatureExample,
+    HistoricalFeatureLeakageError,
+    PredictionCutoffPolicy,
+    build_historical_feature_dataset,
+)
 from football_analytics.features.fifa_ranking import (
     FifaRankingFeatureProvider,
     FifaRankingObservation,
@@ -37,6 +45,7 @@ from football_analytics.features.schedule import ScheduleRestFeatureProvider
 __all__ = [
     "AppliedImputation",
     "ConstantImputationRule",
+    "DEFAULT_HISTORICAL_CUTOFF_POLICY",
     "FeatureDefinition",
     "FeatureLineage",
     "FeatureMissingReason",
@@ -47,15 +56,20 @@ __all__ = [
     "FeatureVectorArtifact",
     "FifaRankingFeatureProvider",
     "FifaRankingObservation",
+    "HistoricalFeatureDataset",
+    "HistoricalFeatureExample",
+    "HistoricalFeatureLeakageError",
     "ImputationPolicy",
     "LegacyEloFeatureProvider",
     "MaterializedFeatureRow",
     "MissingFeaturePolicyError",
     "PredictionContext",
+    "PredictionCutoffPolicy",
     "RollingFormFeatureProvider",
     "ScheduleRestFeatureProvider",
     "build_feature_vector",
     "build_feature_vector_artifact",
+    "build_historical_feature_dataset",
     "feature_set_id_for_definitions",
     "load_feature_vector_artifact",
     "materialize_feature_vector",
