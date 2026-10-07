@@ -39,7 +39,7 @@ policy, so knowing a result's period does not prove when it was available.
 The target policy is included in model dataset and backtest identities,
 experiment manifests, Poisson artifacts, research/forecast JSON, and comparison
 output. New versions are model dataset schema 3, Poisson schema 2, experiment
-manifest schema 2, research report schema 3, and forecast report schema 2.
+manifest schema 2, research report schema 4, and forecast report schema 2.
 Old Poisson models and experiment manifests fail loading; retrain from a source
 with verified score semantics. Do not relabel an old artifact or edit its hash.
 The legacy `wc_forecast` workflow is retained unchanged and does not provide
@@ -56,5 +56,5 @@ store separate period-by-period tallies, verify licenses, or reconstruct histori
 source revisions. A source with multiple periods needs documented regulation
 fields mapped into these targets, with appropriate source/version provenance.
 Real-data rollout and market comparisons still require source verification and
-compatible market settlement rules. Calibration and ensemble fitting remain
-separate research milestones.
+compatible market settlement rules. Nested calibration and ensemble fitting are described in
+[temporal postprocessing](temporal_postprocessing.md).

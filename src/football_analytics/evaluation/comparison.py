@@ -24,6 +24,7 @@ class ModelComparisonRow:
     log_loss_delta_vs_reference: float
     brier_delta_vs_reference: float
     rps_delta_vs_reference: float
+    model_spec_id: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +102,7 @@ def compare_backtests(
             - baseline.multiclass_brier_score,
             metrics_by_run[run.backtest_run_id].ranked_probability_score
             - baseline.ranked_probability_score,
+            model_spec_id=run.model_spec_id,
         )
         for run in sorted(backtests, key=lambda item: (item.model_family, item.backtest_run_id))
     )

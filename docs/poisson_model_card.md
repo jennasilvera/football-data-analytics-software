@@ -100,7 +100,7 @@ independent verification; a label does not prove provider accuracy. See
 of the source's publication history or absence of retrospective corrections.
 
 Future work should assess shrinkage and time decay, source revision
-contracts, low-score dependence, nested temporal calibration and ensemble
+contracts, low-score dependence, validation of nested temporal calibration and ensemble
 training, interval coverage, and licensed-source evaluation. A more complex
 model must beat the simple training-only class-frequency benchmark on held-out
 data before any promotion decision.

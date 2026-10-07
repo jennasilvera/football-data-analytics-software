@@ -45,6 +45,9 @@ jobs:
       - name: Run paired V2 model comparison
         run: make demo-v2-comparison
 
+      - name: Run nested temporal probability research
+        run: make demo-v2-nested
+
       - name: Run legacy sample forecasting pipeline
         run: |
           python -m wc_forecast health

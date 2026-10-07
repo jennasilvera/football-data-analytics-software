@@ -21,6 +21,8 @@ class ModelFamily(StrEnum):
     HIST_GRADIENT_BOOSTING = "hist_gradient_boosting"
     CLASS_FREQUENCY = "class_frequency"
     POISSON = "poisson"
+    TEMPERATURE_SCALING = "temperature_scaling"
+    CONVEX_ENSEMBLE = "convex_ensemble"
 
 
 @dataclass(frozen=True, slots=True)

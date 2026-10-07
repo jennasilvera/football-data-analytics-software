@@ -21,10 +21,15 @@ from football_analytics.domain.scores import REGULATION_TARGET_POLICY_ID, ScoreB
 from football_analytics.evaluation import ExpandingWindowPolicy, RollingWindowPolicy
 from football_analytics.experiments import JsonExperimentRegistry
 from football_analytics.models import hist_gradient_boosting_spec, logistic_regression_spec
-from football_analytics.models.artifacts import load_poisson_model, save_poisson_model
+from football_analytics.models.artifacts import (
+    load_poisson_model,
+    save_poisson_model,
+    save_probability_transform,
+)
 from football_analytics.models.frequency import class_frequency_spec
 from football_analytics.models.poisson import poisson_spec
 from football_analytics.reports.comparison import render_model_comparison
+from football_analytics.services.nested_research import NestedHoldoutPolicy, run_nested_research
 from football_analytics.services.research import (
     ResearchInputError,
     run_research,
@@ -90,6 +95,9 @@ def main(argv: list[str] | None = None) -> None:
     )
     research.add_argument("--seed", type=int, default=42)
     research.add_argument("--calibration-bins", type=int, default=10)
+    research.add_argument("--postprocess-days", type=int,
+                          help="Fit nested probability transforms; requires --model all")
+    research.add_argument("--min-postprocess", type=int, default=30)
     research.add_argument("--code-revision")
     research.add_argument("--legal-use-notes")
     research.add_argument("--output", type=Path, default=Path("outputs/v2-research"))
@@ -180,8 +188,19 @@ def main(argv: list[str] | None = None) -> None:
             "poisson": poisson_spec(),
         }
         comparison = None
+        nested = None
+        if args.postprocess_days is not None and args.model != "all":
+            raise ValueError("--postprocess-days requires --model all.")
         if args.model == "all":
-            compared = run_research_comparison(
+            if args.postprocess_days is not None:
+                nested = run_nested_research(
+                    observations=observations, catalogs=catalogs, split_policy=policy,
+                    model_specs=tuple(specs.values()), calibration_bins=args.calibration_bins,
+                    code_revision=args.code_revision, nested_policy=NestedHoldoutPolicy(
+                        timedelta(days=args.postprocess_days), args.min_postprocess,
+                    ),
+                )
+            compared = nested if nested is not None else run_research_comparison(
                 observations=observations,
                 catalogs=catalogs,
                 split_policy=policy,
@@ -206,7 +225,7 @@ def main(argv: list[str] | None = None) -> None:
             )
         result = runs[0]
         payload: dict[str, object] = {
-            "schema_version": 3,
+            "schema_version": 4,
             "target_policy_id": REGULATION_TARGET_POLICY_ID,
             "source_sha256": source_sha256,
             "source_id": args.source_id,
@@ -236,6 +255,11 @@ def main(argv: list[str] | None = None) -> None:
             }
             for run in runs
         ]
+        payload["nested_holdout"] = (
+            {"holdout_days": args.postprocess_days, "min_examples": args.min_postprocess,
+             "folds": [audit.to_dict() for audit in nested.audits]}
+            if nested is not None else None
+        )
         payload["comparison"] = asdict(comparison) if comparison is not None else None
         report_path = _save_report(payload, args.output)
         model_paths = [
@@ -243,6 +267,11 @@ def main(argv: list[str] | None = None) -> None:
             for run in runs
             for model in run.score_models
         ]
+        if nested is not None:
+            model_paths.extend(
+                str(save_probability_transform(model, args.output / "models"))
+                for audit in nested.audits for model in audit.transforms
+            )
         for run in runs[1:]:
             JsonExperimentRegistry(args.output / "experiments").put(run.manifest)
         comparison_path = None

@@ -32,6 +32,7 @@ check: lint test
 
 .PHONY: demo-v2 demo-v2-comparison
 V2_MODEL ?= logistic
+V2_EXTRA_ARGS ?=
 demo-v2:
 	$(PYTHON) -m football_analytics research \
 		--results data/sample/v2/results.csv \
@@ -43,7 +44,7 @@ demo-v2:
 		--cutoff 2020-03-01T00:00:00Z \
 		--cutoff 2020-04-01T00:00:00Z \
 		--evaluation-days 30 --min-train 12 --calibration-bins 5 \
-		--model $(V2_MODEL)
+		--model $(V2_MODEL) $(V2_EXTRA_ARGS)
 
 demo-v2-comparison:
 	$(MAKE) demo-v2 V2_MODEL=all
@@ -159,3 +160,7 @@ forecast-workflow:
 		--train-cutoff-date 2026-01-01 \
 		--rating-cutoff-date 2026-06-19 \
 		--output outputs/world_cup_2026_upcoming_forecasts.csv
+
+.PHONY: demo-v2-nested
+demo-v2-nested:
+	$(MAKE) demo-v2 V2_MODEL=all V2_EXTRA_ARGS="--postprocess-days 21 --min-postprocess 5"
