@@ -19,7 +19,6 @@ from football_analytics.features import (
     build_feature_vector,
 )
 
-
 CUTOFF = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
 
