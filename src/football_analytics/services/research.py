@@ -19,6 +19,8 @@ from football_analytics.evaluation import (
     build_rolling_window_folds,
     run_temporal_backtest,
 )
+from football_analytics.evaluation.comparison import ModelComparison, compare_backtests
+from football_analytics.evaluation.score_backtest import BacktestScoreForecast, run_poisson_backtest
 from football_analytics.experiments import ExperimentManifest, build_experiment_manifest
 from football_analytics.features import (
     ConstantImputationRule,
@@ -26,7 +28,9 @@ from football_analytics.features import (
     RollingFormFeatureProvider,
     build_historical_feature_dataset,
 )
-from football_analytics.models import ModelTrainingSpec, train_sklearn_model
+from football_analytics.models import ModelFamily, ModelTrainingSpec, train_sklearn_model
+from football_analytics.models.frequency import train_class_frequency
+from football_analytics.models.poisson import PoissonModel
 
 
 class ResearchInputError(ValueError):
@@ -46,9 +50,11 @@ class ResearchResult:
     backtest: TemporalBacktestResult
     calibration: CalibrationReport
     manifest: ExperimentManifest
+    score_forecasts: tuple[BacktestScoreForecast, ...] = ()
+    score_models: tuple[PoissonModel, ...] = ()
 
 
-def run_form_research(
+def run_research(
     *,
     observations: list[MatchObservation],
     catalogs: CanonicalCatalogs,
@@ -57,12 +63,13 @@ def run_form_research(
     calibration_bins: int = 10,
     code_revision: str | None = None,
 ) -> ResearchResult:
-    """Run the declared rolling-form baseline without transport or storage coupling.
+    """Run a declared model family without transport or storage coupling.
 
     Unresolved or excluded rows stop the run; silently selecting the remaining
     sample would change the research population. Zero imputation is a declared
     baseline convention, accompanied by missingness indicators, not an estimate
-    of an unknown team's strength. Scaling is fitted within each training fold.
+    of an unknown team's strength. Classifier scaling is fitted within each training fold.
+    Poisson consumes canonical goals and team context, not the form matrix.
     """
     if calibration_bins <= 0:
         raise ValueError("calibration_bins must be positive.")
@@ -79,7 +86,10 @@ def run_form_research(
     if normalized.excluded or normalized.quarantined:
         raise ResearchInputError(normalized)
     provider = RollingFormFeatureProvider(normalized.normalized)
-    dataset = build_historical_feature_dataset(normalized.normalized, providers=[provider])
+    dataset = build_historical_feature_dataset(
+        normalized.normalized,
+        providers=[] if model_spec.family is ModelFamily.POISSON else [provider],
+    )
     imputation = ImputationPolicy(
         policy_id="rolling_form_zero_with_status_v1",
         rules=tuple(
@@ -96,12 +106,28 @@ def run_form_research(
         folds = build_rolling_window_folds(dataset, split_policy)
     else:
         folds = build_expanding_window_folds(dataset, split_policy)
-    backtest = run_temporal_backtest(
-        fold_report=folds,
-        imputation_policy=imputation,
-        model_spec=model_spec,
-        trainer=train_sklearn_model,
-    )
+    score_forecasts: tuple[BacktestScoreForecast, ...] = ()
+    score_models: tuple[PoissonModel, ...] = ()
+    if model_spec.family is ModelFamily.POISSON:
+        score_result = run_poisson_backtest(
+            fold_report=folds,
+            records=normalized.normalized,
+            model_spec=model_spec,
+        )
+        backtest = score_result.backtest
+        score_forecasts = score_result.score_forecasts
+        score_models = score_result.models
+    else:
+        backtest = run_temporal_backtest(
+            fold_report=folds,
+            imputation_policy=imputation,
+            model_spec=model_spec,
+            trainer=(
+                train_class_frequency
+                if model_spec.family is ModelFamily.CLASS_FREQUENCY
+                else train_sklearn_model
+            ),
+        )
     calibration = build_calibration_report(
         [
             ScoredPrediction(prediction.actual, prediction.probabilities)
@@ -113,4 +139,46 @@ def run_form_research(
     manifest = build_experiment_manifest(
         backtest, calibration=calibration, code_revision=code_revision
     )
-    return ResearchResult(normalized, backtest, calibration, manifest)
+    return ResearchResult(
+        normalized, backtest, calibration, manifest, score_forecasts, score_models
+    )
+
+
+# Compatibility alias for clients of the first V2 workflow.
+run_form_research = run_research
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchComparisonResult:
+    runs: tuple[ResearchResult, ...]
+    comparison: ModelComparison
+
+
+def run_research_comparison(
+    *,
+    observations: list[MatchObservation],
+    catalogs: CanonicalCatalogs,
+    split_policy: ExpandingWindowPolicy | RollingWindowPolicy,
+    model_specs: tuple[ModelTrainingSpec, ...],
+    calibration_bins: int = 10,
+    code_revision: str | None = None,
+) -> ResearchComparisonResult:
+    """Evaluate declared models on the same source and split; first model is reference."""
+    if len(model_specs) < 2:
+        raise ValueError("Declare at least two models for comparison.")
+    runs = tuple(
+        run_research(
+            observations=observations,
+            catalogs=catalogs,
+            split_policy=split_policy,
+            model_spec=spec,
+            calibration_bins=calibration_bins,
+            code_revision=code_revision,
+        )
+        for spec in model_specs
+    )
+    comparison = compare_backtests(
+        [run.backtest for run in runs],
+        reference_backtest_run_id=runs[0].backtest.backtest_run_id,
+    )
+    return ResearchComparisonResult(runs, comparison)

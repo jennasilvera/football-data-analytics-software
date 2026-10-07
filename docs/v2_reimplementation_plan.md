@@ -10,7 +10,7 @@ football.
 The V2 effort is a reimplementation, not a greenfield rewrite. Existing code is
 retained when it is correct, tested, and compatible with the new contracts.
 Legacy code remains operational on `master` while the staged V2 components are
-reconciled on `reimplementation/v2-integrated-research`. The executable research
+integrated on `master`. The executable research
 workflow and remaining gaps are documented in [V2 research workflow](v2_research_workflow.md).
 
 ## Baseline audited
@@ -249,6 +249,12 @@ defaults.
 
 The legacy package will be removed only after parity tests prove that each retained
 capability has migrated successfully.
+
+## Current acceptance status
+
+See [implementation status](implementation_status.md) for the requirement-by-requirement
+map and executable commands. The phase sequence below is the migration plan,
+not a claim that every listed deliverable is finished.
 
 ## Phase sequence
 

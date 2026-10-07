@@ -54,6 +54,7 @@ class BacktestFoldResult:
     test_count: int
     metrics: EvaluationMetrics
     predictions: tuple[BacktestPrediction, ...]
+    train_match_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,6 +205,7 @@ def _run_fold(
             test_count=len(evaluation_dataset.examples),
             metrics=metrics,
             predictions=tuple(predictions),
+            train_match_ids=tuple(example.match_id for example in train_dataset.examples),
         ),
         tuple(scored),
     )

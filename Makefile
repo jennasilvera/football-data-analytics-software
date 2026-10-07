@@ -30,7 +30,8 @@ test:
 
 check: lint test
 
-.PHONY: demo-v2
+.PHONY: demo-v2 demo-v2-comparison
+V2_MODEL ?= logistic
 demo-v2:
 	$(PYTHON) -m football_analytics research \
 		--results data/sample/v2/results.csv \
@@ -41,7 +42,11 @@ demo-v2:
 		--assert-senior-mens-a \
 		--cutoff 2020-03-01T00:00:00Z \
 		--cutoff 2020-04-01T00:00:00Z \
-		--evaluation-days 30 --min-train 12 --calibration-bins 5
+		--evaluation-days 30 --min-train 12 --calibration-bins 5 \
+		--model $(V2_MODEL)
+
+demo-v2-comparison:
+	$(MAKE) demo-v2 V2_MODEL=all
 
 health:
 	$(PYTHON) -m wc_forecast health
