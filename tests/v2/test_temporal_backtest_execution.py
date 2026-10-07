@@ -88,6 +88,9 @@ def _example(index: int) -> HistoricalFeatureExample:
 
 def _dataset() -> HistoricalFeatureDataset:
     return HistoricalFeatureDataset(
+        feature_set_id=FEATURE_SET_ID,
+        cutoff_policy_id="historical_cutoff_v1",
+        result_eligibility_policy_id="result_eligibility_v1",
         examples=tuple(_example(index) for index in range(12)),
     )
 
