@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -32,7 +32,7 @@ def test_match_normalizes_kickoff_to_utc() -> None:
         20,
         0,
         tzinfo=UTC,
-    ).astimezone(UTC + timedelta(hours=-5))
+    ).astimezone(timezone(timedelta(hours=-5)))
 
     match = Match(
         match_id="arg-bra-2026-11-14",
