@@ -6,6 +6,11 @@ from football_analytics.features.artifacts import (
     load_feature_vector_artifact,
     save_feature_vector_artifact,
 )
+from football_analytics.features.availability import (
+    PlayerAvailabilityObservation,
+    PlayerAvailabilityStatus,
+    SquadAvailabilityFeatureProvider,
+)
 from football_analytics.features.base import (
     FeatureDefinition,
     FeatureLineage,
@@ -17,10 +22,6 @@ from football_analytics.features.base import (
     PredictionContext,
     build_feature_vector,
     feature_set_id_for_definitions,
-)
-from football_analytics.features.competition import (
-    CompetitionContextFeatureProvider,
-    MatchCompetitionContextObservation,
 )
 from football_analytics.features.dataset import (
     DEFAULT_HISTORICAL_CUTOFF_POLICY,
@@ -45,10 +46,14 @@ from football_analytics.features.materialization import (
 )
 from football_analytics.features.rating import LegacyEloFeatureProvider
 from football_analytics.features.schedule import ScheduleRestFeatureProvider
+from football_analytics.features.travel import (
+    TeamReferenceLocationObservation,
+    TravelContextFeatureProvider,
+    VenueLocationObservation,
+)
 
 __all__ = [
     "AppliedImputation",
-    "CompetitionContextFeatureProvider",
     "ConstantImputationRule",
     "DEFAULT_HISTORICAL_CUTOFF_POLICY",
     "FeatureDefinition",
@@ -66,13 +71,18 @@ __all__ = [
     "HistoricalFeatureLeakageError",
     "ImputationPolicy",
     "LegacyEloFeatureProvider",
-    "MatchCompetitionContextObservation",
     "MaterializedFeatureRow",
     "MissingFeaturePolicyError",
+    "PlayerAvailabilityObservation",
+    "PlayerAvailabilityStatus",
     "PredictionContext",
     "PredictionCutoffPolicy",
     "RollingFormFeatureProvider",
     "ScheduleRestFeatureProvider",
+    "SquadAvailabilityFeatureProvider",
+    "TeamReferenceLocationObservation",
+    "TravelContextFeatureProvider",
+    "VenueLocationObservation",
     "build_feature_vector",
     "build_feature_vector_artifact",
     "build_historical_feature_dataset",
