@@ -182,10 +182,9 @@ class TravelContextFeatureProvider:
                 definition=self._definition(name),
                 status=FeatureStatus.MISSING,
                 as_of=context.prediction_time,
-                missing_reason=(
-                    team.missing_reason
-                    or venue.missing_reason
-                    or FeatureMissingReason.UPSTREAM_UNAVAILABLE
+                missing_reason=_combined_missing_reason(
+                    team.missing_reason,
+                    venue.missing_reason,
                 ),
                 lineage=lineage,
             )
@@ -320,6 +319,25 @@ def _merge_lineage(
     )
 
 
+def _combined_missing_reason(
+    *reasons: FeatureMissingReason | None,
+) -> FeatureMissingReason:
+    """Return the most safety-relevant reason when several inputs are absent."""
+
+    present = tuple(reason for reason in reasons if reason is not None)
+
+    if FeatureMissingReason.TEMPORAL_INTEGRITY in present:
+        return FeatureMissingReason.TEMPORAL_INTEGRITY
+    if FeatureMissingReason.STALE in present:
+        return FeatureMissingReason.STALE
+    if FeatureMissingReason.TEMPORAL_PRECISION in present:
+        return FeatureMissingReason.TEMPORAL_PRECISION
+    if present:
+        return present[0]
+
+    return FeatureMissingReason.UPSTREAM_UNAVAILABLE
+
+
 def _difference(
     *,
     definition: FeatureDefinition,
@@ -334,10 +352,9 @@ def _difference(
             definition=definition,
             status=FeatureStatus.MISSING,
             as_of=context.prediction_time,
-            missing_reason=(
-                home.missing_reason
-                or away.missing_reason
-                or FeatureMissingReason.UPSTREAM_UNAVAILABLE
+            missing_reason=_combined_missing_reason(
+                home.missing_reason,
+                away.missing_reason,
             ),
             lineage=lineage,
         )
