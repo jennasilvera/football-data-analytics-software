@@ -4,9 +4,7 @@
 
 A research- and production-oriented analytics platform for **senior men's international football**.
 
-The project is being reimplemented from a World Cup-specific forecasting engine into a broader system for canonical football data, point-in-time feature engineering, team-strength ratings, probabilistic forecasting, chronological evaluation, simulation, and market benchmarking.
-
-The long-term goal is not a single tournament predictor or a portfolio demo. It is a maintainable analytical system with explicit data contracts, reproducible research, leakage controls, model/version lineage, and interfaces that can support both research and production workflows.
+The project is a maintainable analytical system with explicit data contracts, reproducible research, leakage controls, model/version lineage, and interfaces that can support both research and production workflows.
 
 ## Scope
 
