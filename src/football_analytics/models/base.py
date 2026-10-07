@@ -5,13 +5,13 @@ import json
 import math
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Protocol, TypeAlias
+from typing import Protocol
 
 from football_analytics.evaluation.probabilities import OutcomeProbabilities
 from football_analytics.features import MaterializedFeatureRow
 from football_analytics.models.dataset import ModelDataset
 
-ParameterValue: TypeAlias = bool | int | float | str
+type ParameterValue = bool | int | float | str
 
 
 class ModelFamily(StrEnum):
