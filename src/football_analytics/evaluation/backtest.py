@@ -66,6 +66,7 @@ class TemporalBacktestResult:
     model_version: str
     feature_set_id: str
     cutoff_policy_id: str
+    result_eligibility_policy_id: str
     imputation_policy_id: str
     folds: tuple[BacktestFoldResult, ...]
     skipped_folds: tuple[SkippedTemporalFold, ...]
@@ -96,6 +97,9 @@ def run_temporal_backtest(
             fold=fold,
             feature_set_id=fold_report.source_feature_set_id,
             cutoff_policy_id=fold_report.source_cutoff_policy_id,
+            result_eligibility_policy_id=(
+                fold_report.source_result_eligibility_policy_id
+            ),
             imputation_policy=imputation_policy,
             model_spec=model_spec,
             trainer=trainer,
@@ -109,6 +113,9 @@ def run_temporal_backtest(
         model_spec=model_spec,
         feature_set_id=fold_report.source_feature_set_id,
         cutoff_policy_id=fold_report.source_cutoff_policy_id,
+        result_eligibility_policy_id=(
+            fold_report.source_result_eligibility_policy_id
+        ),
         imputation_policy_id=imputation_policy.policy_id,
         folds=tuple(fold_results),
     )
@@ -120,6 +127,9 @@ def run_temporal_backtest(
         model_version=model_spec.model_version,
         feature_set_id=fold_report.source_feature_set_id,
         cutoff_policy_id=fold_report.source_cutoff_policy_id,
+        result_eligibility_policy_id=(
+            fold_report.source_result_eligibility_policy_id
+        ),
         imputation_policy_id=imputation_policy.policy_id,
         folds=tuple(fold_results),
         skipped_folds=fold_report.skipped,
@@ -132,6 +142,7 @@ def _run_fold(
     fold: TemporalBacktestFold,
     feature_set_id: str,
     cutoff_policy_id: str,
+    result_eligibility_policy_id: str,
     imputation_policy: ImputationPolicy,
     model_spec: ModelTrainingSpec,
     trainer: ModelTrainer,
@@ -139,12 +150,14 @@ def _run_fold(
     train_dataset = build_model_dataset_from_examples(
         feature_set_id=feature_set_id,
         cutoff_policy_id=cutoff_policy_id,
+        result_eligibility_policy_id=result_eligibility_policy_id,
         examples=fold.train,
         imputation_policy=imputation_policy,
     )
     evaluation_dataset = build_model_dataset_from_examples(
         feature_set_id=feature_set_id,
         cutoff_policy_id=cutoff_policy_id,
+        result_eligibility_policy_id=result_eligibility_policy_id,
         examples=fold.test,
         imputation_policy=imputation_policy,
     )
@@ -196,6 +209,7 @@ def _backtest_run_id(
     model_spec: ModelTrainingSpec,
     feature_set_id: str,
     cutoff_policy_id: str,
+    result_eligibility_policy_id: str,
     imputation_policy_id: str,
     folds: tuple[BacktestFoldResult, ...],
 ) -> str:
@@ -210,6 +224,7 @@ def _backtest_run_id(
         },
         "feature_set_id": feature_set_id,
         "cutoff_policy_id": cutoff_policy_id,
+        "result_eligibility_policy_id": result_eligibility_policy_id,
         "imputation_policy_id": imputation_policy_id,
         "folds": [
             {
