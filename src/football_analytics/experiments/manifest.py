@@ -6,8 +6,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from football_analytics.evaluation.backtest import TemporalBacktestResult
-from football_analytics.evaluation.calibration import CalibrationReport
-from football_analytics.evaluation.metrics import EvaluationMetrics
+from football_analytics.evaluation.calibration import (
+    CalibrationReport,
+    build_calibration_report,
+)
+from football_analytics.evaluation.metrics import (
+    EvaluationMetrics,
+    ScoredPrediction,
+)
 
 EXPERIMENT_MANIFEST_SCHEMA_VERSION = 1
 
@@ -244,10 +250,28 @@ def build_experiment_manifest(
 ) -> ExperimentManifest:
     """Build one deterministic experiment manifest from evaluated artifacts."""
 
-    if calibration is not None and calibration.n_predictions != backtest.prediction_count:
-        raise ValueError(
-            "Calibration prediction count must match the backtest prediction count."
+    if calibration is not None:
+        if calibration.n_predictions != backtest.prediction_count:
+            raise ValueError(
+                "Calibration prediction count must match the backtest prediction count."
+            )
+
+        scored = [
+            ScoredPrediction(
+                actual=prediction.actual,
+                probabilities=prediction.probabilities,
+            )
+            for fold in backtest.folds
+            for prediction in fold.predictions
+        ]
+        expected_calibration = build_calibration_report(
+            scored,
+            n_bins=calibration.n_bins,
         )
+        if calibration.report_id != expected_calibration.report_id:
+            raise ValueError(
+                "Calibration report does not match the backtest prediction sample."
+            )
 
     calibration_report_id = (
         calibration.report_id if calibration is not None else None
