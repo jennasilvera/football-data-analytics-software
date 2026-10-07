@@ -1,0 +1,270 @@
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+from typing import Any
+
+from football_analytics.evaluation.backtest import TemporalBacktestResult
+from football_analytics.evaluation.calibration import CalibrationReport
+from football_analytics.evaluation.metrics import EvaluationMetrics
+
+EXPERIMENT_MANIFEST_SCHEMA_VERSION = 1
+
+
+@dataclass(frozen=True, slots=True)
+class ExperimentManifest:
+    """Immutable, self-describing record of one evaluated model experiment."""
+
+    experiment_id: str
+    backtest_run_id: str
+    calibration_report_id: str | None
+    model_spec_id: str
+    model_family: str
+    model_version: str
+    model_random_seed: int
+    model_parameters: tuple[tuple[str, bool | int | float | str], ...]
+    split_policy_id: str
+    feature_set_id: str
+    cutoff_policy_id: str
+    result_eligibility_policy_id: str
+    imputation_policy_id: str
+    prediction_count: int
+    aggregate_metrics: EvaluationMetrics
+    fold_ids: tuple[str, ...]
+    training_run_ids: tuple[str, ...]
+    model_ids: tuple[str, ...]
+    train_dataset_ids: tuple[str, ...]
+    evaluation_dataset_ids: tuple[str, ...]
+    calibration_n_bins: int | None = None
+    macro_expected_calibration_error: float | None = None
+    code_revision: str | None = None
+    schema_version: int = EXPERIMENT_MANIFEST_SCHEMA_VERSION
+
+    def __post_init__(self) -> None:
+        if self.schema_version != EXPERIMENT_MANIFEST_SCHEMA_VERSION:
+            raise ValueError("Unsupported experiment manifest schema version.")
+        if self.prediction_count <= 0:
+            raise ValueError("prediction_count must be positive.")
+
+        has_calibration = self.calibration_report_id is not None
+        calibration_fields = (
+            self.calibration_n_bins,
+            self.macro_expected_calibration_error,
+        )
+        if has_calibration != all(value is not None for value in calibration_fields):
+            raise ValueError(
+                "Calibration metadata must be entirely present or entirely absent."
+            )
+
+        if self.code_revision is not None:
+            code_revision = self.code_revision.strip()
+            if not code_revision:
+                raise ValueError("code_revision must not be blank when provided.")
+            object.__setattr__(self, "code_revision", code_revision)
+
+        expected_id = _experiment_id(self._identity_payload())
+        if self.experiment_id != expected_id:
+            raise ValueError(
+                "experiment_id does not match the manifest's deterministic identity."
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe canonical manifest representation."""
+
+        return {
+            "schema_version": self.schema_version,
+            "experiment_id": self.experiment_id,
+            **self._identity_payload(),
+            "aggregate_metrics": {
+                "n_predictions": self.aggregate_metrics.n_predictions,
+                "accuracy": self.aggregate_metrics.accuracy,
+                "log_loss": self.aggregate_metrics.log_loss,
+                "multiclass_brier_score": (
+                    self.aggregate_metrics.multiclass_brier_score
+                ),
+                "ranked_probability_score": (
+                    self.aggregate_metrics.ranked_probability_score
+                ),
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> ExperimentManifest:
+        """Load and validate a manifest from a JSON-compatible dictionary."""
+
+        metrics_payload = payload["aggregate_metrics"]
+        metrics = EvaluationMetrics(
+            n_predictions=int(metrics_payload["n_predictions"]),
+            accuracy=float(metrics_payload["accuracy"]),
+            log_loss=float(metrics_payload["log_loss"]),
+            multiclass_brier_score=float(
+                metrics_payload["multiclass_brier_score"]
+            ),
+            ranked_probability_score=float(
+                metrics_payload["ranked_probability_score"]
+            ),
+        )
+
+        return cls(
+            schema_version=int(payload["schema_version"]),
+            experiment_id=str(payload["experiment_id"]),
+            backtest_run_id=str(payload["backtest_run_id"]),
+            calibration_report_id=_optional_str(
+                payload.get("calibration_report_id")
+            ),
+            model_spec_id=str(payload["model_spec_id"]),
+            model_family=str(payload["model_family"]),
+            model_version=str(payload["model_version"]),
+            model_random_seed=int(payload["model_random_seed"]),
+            model_parameters=tuple(
+                (str(name), value)
+                for name, value in payload["model_parameters"]
+            ),
+            split_policy_id=str(payload["split_policy_id"]),
+            feature_set_id=str(payload["feature_set_id"]),
+            cutoff_policy_id=str(payload["cutoff_policy_id"]),
+            result_eligibility_policy_id=str(
+                payload["result_eligibility_policy_id"]
+            ),
+            imputation_policy_id=str(payload["imputation_policy_id"]),
+            prediction_count=int(payload["prediction_count"]),
+            aggregate_metrics=metrics,
+            fold_ids=tuple(str(value) for value in payload["fold_ids"]),
+            training_run_ids=tuple(
+                str(value) for value in payload["training_run_ids"]
+            ),
+            model_ids=tuple(str(value) for value in payload["model_ids"]),
+            train_dataset_ids=tuple(
+                str(value) for value in payload["train_dataset_ids"]
+            ),
+            evaluation_dataset_ids=tuple(
+                str(value) for value in payload["evaluation_dataset_ids"]
+            ),
+            calibration_n_bins=(
+                int(payload["calibration_n_bins"])
+                if payload.get("calibration_n_bins") is not None
+                else None
+            ),
+            macro_expected_calibration_error=(
+                float(payload["macro_expected_calibration_error"])
+                if payload.get("macro_expected_calibration_error") is not None
+                else None
+            ),
+            code_revision=_optional_str(payload.get("code_revision")),
+        )
+
+    def _identity_payload(self) -> dict[str, Any]:
+        return {
+            "backtest_run_id": self.backtest_run_id,
+            "calibration_report_id": self.calibration_report_id,
+            "model_spec_id": self.model_spec_id,
+            "model_family": self.model_family,
+            "model_version": self.model_version,
+            "model_random_seed": self.model_random_seed,
+            "model_parameters": [list(item) for item in self.model_parameters],
+            "split_policy_id": self.split_policy_id,
+            "feature_set_id": self.feature_set_id,
+            "cutoff_policy_id": self.cutoff_policy_id,
+            "result_eligibility_policy_id": self.result_eligibility_policy_id,
+            "imputation_policy_id": self.imputation_policy_id,
+            "prediction_count": self.prediction_count,
+            "fold_ids": list(self.fold_ids),
+            "training_run_ids": list(self.training_run_ids),
+            "model_ids": list(self.model_ids),
+            "train_dataset_ids": list(self.train_dataset_ids),
+            "evaluation_dataset_ids": list(self.evaluation_dataset_ids),
+            "calibration_n_bins": self.calibration_n_bins,
+            "macro_expected_calibration_error": (
+                self.macro_expected_calibration_error
+            ),
+            "code_revision": self.code_revision,
+        }
+
+
+def build_experiment_manifest(
+    backtest: TemporalBacktestResult,
+    *,
+    calibration: CalibrationReport | None = None,
+    code_revision: str | None = None,
+) -> ExperimentManifest:
+    """Build one deterministic experiment manifest from evaluated artifacts."""
+
+    if calibration is not None and calibration.n_predictions != backtest.prediction_count:
+        raise ValueError(
+            "Calibration prediction count must match the backtest prediction count."
+        )
+
+    identity = {
+        "backtest_run_id": backtest.backtest_run_id,
+        "calibration_report_id": (
+            calibration.report_id if calibration is not None else None
+        ),
+        "model_spec_id": backtest.model_spec_id,
+        "model_family": backtest.model_family,
+        "model_version": backtest.model_version,
+        "model_random_seed": backtest.model_random_seed,
+        "model_parameters": [list(item) for item in backtest.model_parameters],
+        "split_policy_id": backtest.split_policy_id,
+        "feature_set_id": backtest.feature_set_id,
+        "cutoff_policy_id": backtest.cutoff_policy_id,
+        "result_eligibility_policy_id": backtest.result_eligibility_policy_id,
+        "imputation_policy_id": backtest.imputation_policy_id,
+        "prediction_count": backtest.prediction_count,
+        "fold_ids": [fold.fold_id for fold in backtest.folds],
+        "training_run_ids": [fold.training_run_id for fold in backtest.folds],
+        "model_ids": [fold.model_id for fold in backtest.folds],
+        "train_dataset_ids": [fold.train_dataset_id for fold in backtest.folds],
+        "evaluation_dataset_ids": [
+            fold.evaluation_dataset_id for fold in backtest.folds
+        ],
+        "calibration_n_bins": calibration.n_bins if calibration is not None else None,
+        "macro_expected_calibration_error": (
+            calibration.macro_expected_calibration_error
+            if calibration is not None
+            else None
+        ),
+        "code_revision": code_revision.strip() if code_revision is not None else None,
+    }
+
+    experiment_id = _experiment_id(identity)
+
+    return ExperimentManifest(
+        experiment_id=experiment_id,
+        aggregate_metrics=backtest.aggregate_metrics,
+        model_parameters=backtest.model_parameters,
+        fold_ids=tuple(identity["fold_ids"]),
+        training_run_ids=tuple(identity["training_run_ids"]),
+        model_ids=tuple(identity["model_ids"]),
+        train_dataset_ids=tuple(identity["train_dataset_ids"]),
+        evaluation_dataset_ids=tuple(identity["evaluation_dataset_ids"]),
+        backtest_run_id=backtest.backtest_run_id,
+        calibration_report_id=identity["calibration_report_id"],
+        model_spec_id=backtest.model_spec_id,
+        model_family=backtest.model_family,
+        model_version=backtest.model_version,
+        model_random_seed=backtest.model_random_seed,
+        split_policy_id=backtest.split_policy_id,
+        feature_set_id=backtest.feature_set_id,
+        cutoff_policy_id=backtest.cutoff_policy_id,
+        result_eligibility_policy_id=backtest.result_eligibility_policy_id,
+        imputation_policy_id=backtest.imputation_policy_id,
+        prediction_count=backtest.prediction_count,
+        calibration_n_bins=identity["calibration_n_bins"],
+        macro_expected_calibration_error=identity[
+            "macro_expected_calibration_error"
+        ],
+        code_revision=identity["code_revision"],
+    )
+
+
+def _experiment_id(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return f"experiment_{digest}"
+
+
+def _optional_str(value: object) -> str | None:
+    if value is None:
+        return None
+    return str(value)
