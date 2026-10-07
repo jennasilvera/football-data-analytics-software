@@ -14,7 +14,6 @@ from football_analytics.features.base import (
 )
 from football_analytics.features.history import team_history_before_cutoff
 
-
 DEFAULT_FORM_WINDOWS = (5, 10)
 ROLLING_FORM_VERSION = "rolling_form_v1"
 
