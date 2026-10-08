@@ -21,6 +21,7 @@ class ModelFamily(StrEnum):
     HIST_GRADIENT_BOOSTING = "hist_gradient_boosting"
     CLASS_FREQUENCY = "class_frequency"
     COMPETITION_FREQUENCY = "competition_frequency"
+    CONFEDERATION_FREQUENCY = "confederation_frequency"
     POISSON = "poisson"
     TEMPERATURE_SCALING = "temperature_scaling"
     CONVEX_ENSEMBLE = "convex_ensemble"

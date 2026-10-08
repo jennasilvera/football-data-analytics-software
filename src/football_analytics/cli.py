@@ -28,6 +28,7 @@ from football_analytics.models.artifacts import (
     save_probability_transform,
 )
 from football_analytics.models.competition_frequency import competition_frequency_spec
+from football_analytics.models.confederation_frequency import confederation_frequency_spec
 from football_analytics.models.frequency import class_frequency_spec
 from football_analytics.models.poisson import poisson_spec
 from football_analytics.reports.comparison import render_model_comparison
@@ -120,6 +121,8 @@ def main(argv: list[str] | None = None) -> None:
             "class-frequency",
             "competition-frequency",
             "competition-comparison",
+            "confederation-frequency",
+            "confederation-comparison",
             "poisson",
             "all",
         ],
@@ -229,20 +232,31 @@ def main(argv: list[str] | None = None) -> None:
                 timedelta(days=args.training_days),
                 args.min_train,
             )
+        from football_analytics.data.confederations import load_membership_history
+
+        membership = (
+            load_membership_history(
+                args.membership_history, team_ids={team.team_id for team in catalogs.teams}
+            )
+            if args.membership_history is not None
+            else None
+        )
         specs = {
             "class-frequency": class_frequency_spec(),
             "competition-frequency": competition_frequency_spec(),
+            "confederation-frequency": confederation_frequency_spec(),
             "logistic": logistic_regression_spec(random_seed=args.seed),
             "hist-gradient-boosting": hist_gradient_boosting_spec(random_seed=args.seed),
             "poisson": poisson_spec(),
         }
+        comparison_members = {
+            "competition-comparison": ("class-frequency", "competition-frequency"),
+            "confederation-comparison": ("class-frequency", "confederation-frequency"),
+        }
         selected_specs = tuple(
-            value
-            for key, value in specs.items()
-            if (
-                key in ("class-frequency", "competition-frequency")
-                if args.model == "competition-comparison"
-                else key != "competition-frequency"
+            specs[key]
+            for key in comparison_members.get(
+                args.model, ("class-frequency", "logistic", "hist-gradient-boosting", "poisson")
             )
         )
         feature_groups = tuple(args.feature_groups.split(",")) if args.feature_groups else None
@@ -270,7 +284,7 @@ def main(argv: list[str] | None = None) -> None:
                 code_revision=args.code_revision,
             )
             runs, comparison = ablated.runs, ablated.comparison
-        elif args.model in ("all", "competition-comparison"):
+        elif args.model in ("all", "competition-comparison", "confederation-comparison"):
             if args.postprocess_days is not None:
                 nested = run_nested_research(
                     observations=observations,
@@ -294,6 +308,7 @@ def main(argv: list[str] | None = None) -> None:
                     catalogs=catalogs,
                     split_policy=policy,
                     model_specs=selected_specs,
+                    membership_history=membership,
                     calibration_bins=args.calibration_bins,
                     code_revision=args.code_revision,
                     feature_groups=feature_groups,
@@ -311,6 +326,7 @@ def main(argv: list[str] | None = None) -> None:
                     catalogs=catalogs,
                     split_policy=policy,
                     model_spec=spec,
+                    membership_history=membership,
                     calibration_bins=args.calibration_bins,
                     code_revision=args.code_revision,
                     feature_groups=feature_groups,
@@ -387,13 +403,9 @@ def main(argv: list[str] | None = None) -> None:
         payload["feature_context"] = feature_context
         payload["diagnostics"] = [asdict(report) for report in diagnostics]
         membership_reports: list[dict] = []
-        if args.membership_history is not None:
-            from football_analytics.data.confederations import load_membership_history
+        if membership is not None:
             from football_analytics.evaluation.confederations import confederation_diagnostics
 
-            membership = load_membership_history(
-                args.membership_history, team_ids={team.team_id for team in catalogs.teams}
-            )
             membership_reports = [
                 confederation_diagnostics(report, membership) for report in diagnostics
             ]

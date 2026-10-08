@@ -19,6 +19,11 @@ from football_analytics.models.competition_frequency import (
     CompetitionFrequencyModel,
     competition_code,
 )
+from football_analytics.models.confederation_frequency import (
+    PAIR_COLUMN,
+    ConfederationFrequencyModel,
+    pair_code,
+)
 from football_analytics.models.frequency import ClassFrequencyModel
 from football_analytics.models.postprocessing import content_id
 from football_analytics.models.sklearn_models import SklearnOutcomeModel
@@ -38,6 +43,7 @@ class PortableClassifier:
         if p["kind"] not in (
             "frequency",
             "competition_frequency",
+            "confederation_frequency",
             "logistic",
             "hist_gradient_boosting",
         ):
@@ -47,14 +53,17 @@ class PortableClassifier:
         if set(p["classes"]) != {"home_win", "draw", "away_win"} or len(p["classes"]) != 3:
             raise ValueError("Classifier requires three canonical classes.")
         # Validate the complete numeric state before any traversal.
-        if p["kind"] == "competition_frequency":
-            if GROUP_COLUMN not in p["columns"]:
+        if p["kind"] in ("competition_frequency", "confederation_frequency"):
+            column = PAIR_COLUMN if p["kind"] == "confederation_frequency" else GROUP_COLUMN
+            if column not in p["columns"]:
                 raise ValueError("Competition artifact lacks canonical grouping column.")
             OutcomeProbabilities(**p["state"]["global_probabilities"])
             codes = []
             for code, probabilities in p["state"]["groups"]:
                 if type(code) is not int or code < 0 or code in codes:
                     raise ValueError("Invalid or duplicate competition artifact code.")
+                if p["kind"] == "confederation_frequency" and not 1 <= code <= 36:
+                    raise ValueError("Invalid confederation artifact code.")
                 codes.append(code)
                 OutcomeProbabilities(**probabilities)
         elif p["kind"] == "logistic":
@@ -126,9 +135,10 @@ class PortableClassifier:
         p, state = self.payload, self.payload["state"]
         if p["kind"] == "frequency":
             return OutcomeProbabilities(**state)
-        if p["kind"] == "competition_frequency":
+        if p["kind"] in ("competition_frequency", "confederation_frequency"):
             probabilities = dict(state["groups"]).get(
-                competition_code(row), state["global_probabilities"]
+                pair_code(row) if p["kind"] == "confederation_frequency" else competition_code(row),
+                state["global_probabilities"],
             )
             return OutcomeProbabilities(**probabilities)
         if p["kind"] == "logistic":
@@ -169,7 +179,9 @@ def export_classifier(model: ProbabilisticModel) -> PortableClassifier:
         from dataclasses import asdict
 
         payload.update(
-            kind="competition_frequency",
+            kind="confederation_frequency"
+            if isinstance(model, ConfederationFrequencyModel)
+            else "competition_frequency",
             classes=["home_win", "draw", "away_win"],
             state={
                 "global_probabilities": asdict(model.global_probabilities),

@@ -8,6 +8,7 @@ from football_analytics.data import (
     MatchObservation,
     normalize_match_batch,
 )
+from football_analytics.data.confederations import MembershipHistory
 from football_analytics.evaluation import (
     CalibrationReport,
     ExpandingWindowPolicy,
@@ -33,6 +34,10 @@ from football_analytics.models import ModelFamily, ModelTrainingSpec, train_skle
 from football_analytics.models.competition_frequency import (
     CompetitionIdentityProvider,
     train_competition_frequency,
+)
+from football_analytics.models.confederation_frequency import (
+    ConfederationPairProvider,
+    train_confederation_frequency,
 )
 from football_analytics.models.frequency import train_class_frequency
 from football_analytics.models.poisson import PoissonModel
@@ -69,6 +74,7 @@ def run_research(
     code_revision: str | None = None,
     feature_groups: tuple[str, ...] | None = None,
     feature_context: dict | None = None,
+    membership_history: MembershipHistory | None = None,
 ) -> ResearchResult:
     """Run a declared model family without transport or storage coupling.
 
@@ -106,6 +112,15 @@ def run_research(
         if feature_groups is not None or feature_context:
             raise ValueError("Competition baseline uses only canonical competition identity.")
         providers = [CompetitionIdentityProvider(catalogs.competitions)]
+    if model_spec.family is ModelFamily.CONFEDERATION_FREQUENCY:
+        if membership_history is None:
+            raise ValueError("Confederation baseline requires explicit membership history.")
+        if feature_groups is not None or feature_context:
+            raise ValueError("Confederation baseline uses only published membership pairs.")
+        team_ids = {team.team_id for team in catalogs.teams}
+        if any(r.team_id not in team_ids for r in membership_history.releases):
+            raise ValueError("Membership history contains unknown canonical teams.")
+        providers = [ConfederationPairProvider(membership_history)]
     dataset = build_historical_feature_dataset(
         normalized.normalized,
         providers=[] if model_spec.family is ModelFamily.POISSON else providers,
@@ -144,7 +159,9 @@ def run_research(
             imputation_policy=imputation,
             model_spec=model_spec,
             trainer=(
-                train_competition_frequency
+                train_confederation_frequency
+                if model_spec.family is ModelFamily.CONFEDERATION_FREQUENCY
+                else train_competition_frequency
                 if model_spec.family is ModelFamily.COMPETITION_FREQUENCY
                 else train_class_frequency
                 if model_spec.family is ModelFamily.CLASS_FREQUENCY
@@ -187,6 +204,7 @@ def run_research_comparison(
     code_revision: str | None = None,
     feature_groups: tuple[str, ...] | None = None,
     feature_context: dict | None = None,
+    membership_history: MembershipHistory | None = None,
 ) -> ResearchComparisonResult:
     """Evaluate declared models on the same source and split; first model is reference."""
     if len(model_specs) < 2:
@@ -201,6 +219,7 @@ def run_research_comparison(
             code_revision=code_revision,
             feature_groups=feature_groups,
             feature_context=feature_context,
+            membership_history=membership_history,
         )
         for spec in model_specs
     )

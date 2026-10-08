@@ -154,3 +154,12 @@ JSON embeds membership releases, lineage, coverage, assignments and slice metric
 a sibling `.confederations.md` report presents the scores. Unknown memberships
 remain in each partition. See [membership semantics](historical_confederations.md).
 Run `make demo-v2-confederations` for an explicitly synthetic publication fixture.
+
+## Confederation probability benchmark
+
+`--model confederation-frequency --membership-history FILE.json` fits an ordered
+home/away confederation-pair frequency baseline. `--model confederation-comparison`
+pairs it with global class frequency on identical folds. Unknown memberships and
+unseen pairs use the global training estimate; sparse known pairs shrink toward it.
+The membership file is loaded once for both features and diagnostic lineage. See the
+[model specification](confederation_frequency_baseline.md) for temporal and fallback rules.
