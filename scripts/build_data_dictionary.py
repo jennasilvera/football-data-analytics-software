@@ -6,6 +6,7 @@ from pathlib import Path
 
 from football_analytics.data import load_canonical_catalogs
 from football_analytics.features.composition import build_providers
+from football_analytics.models.competition_frequency import CompetitionIdentityProvider
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULES = (
@@ -25,6 +26,7 @@ MODULES = (
     "features.market",
     "features.travel",
     "models.base",
+    "models.competition_frequency",
     "evaluation.metrics",
     "evaluation.diagnostics",
     "ratings.glicko",
@@ -54,6 +56,7 @@ def main():
             "manual",
         ),
     )
+    providers.append(CompetitionIdentityProvider(catalogs.competitions))
     text += "| Feature | Version | Group | Definition |\n|---|---|---|---|\n"
     for provider in providers:
         for field in provider.definitions():

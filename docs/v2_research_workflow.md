@@ -137,3 +137,11 @@ and dependence assumptions. `--market-snapshots FILE.json` adds a prediction-tim
 benchmark with publication/settlement checks and unmatched-coverage reasons.
 Closing-time benchmarks are available through the typed evaluation service and require
 known exact kickoff; they never become an earlier forecast feature.
+
+## Competition-aware benchmark
+
+`--model competition-frequency` evaluates a training-only competition baseline.
+`--model competition-comparison` pairs it with global class frequency. Existing
+`--model all` and nested ensemble member sets are unchanged. See the
+[baseline specification](competition_frequency_baseline.md) for shrinkage, catalog
+identity and explicit unseen-group fallback semantics.

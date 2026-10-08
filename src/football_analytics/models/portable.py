@@ -14,6 +14,11 @@ from football_analytics.domain.probabilities import OutcomeProbabilities
 from football_analytics.domain.scores import REGULATION_TARGET_POLICY_ID
 from football_analytics.features.materialization import MaterializedFeatureRow
 from football_analytics.models.base import ProbabilisticModel
+from football_analytics.models.competition_frequency import (
+    GROUP_COLUMN,
+    CompetitionFrequencyModel,
+    competition_code,
+)
 from football_analytics.models.frequency import ClassFrequencyModel
 from football_analytics.models.postprocessing import content_id
 from football_analytics.models.sklearn_models import SklearnOutcomeModel
@@ -30,14 +35,29 @@ class PortableClassifier:
         body = {k: v for k, v in p.items() if k != "artifact_id"}
         if p.get("artifact_id") != content_id("classifier_", body):
             raise ValueError("Portable classifier identity mismatch.")
-        if p["kind"] not in ("frequency", "logistic", "hist_gradient_boosting"):
+        if p["kind"] not in (
+            "frequency",
+            "competition_frequency",
+            "logistic",
+            "hist_gradient_boosting",
+        ):
             raise ValueError("Unsupported portable classifier kind.")
         if not p["columns"] or len(set(p["columns"])) != len(p["columns"]):
             raise ValueError("Classifier feature names must be unique.")
         if set(p["classes"]) != {"home_win", "draw", "away_win"} or len(p["classes"]) != 3:
             raise ValueError("Classifier requires three canonical classes.")
         # Validate the complete numeric state before any traversal.
-        if p["kind"] == "logistic":
+        if p["kind"] == "competition_frequency":
+            if GROUP_COLUMN not in p["columns"]:
+                raise ValueError("Competition artifact lacks canonical grouping column.")
+            OutcomeProbabilities(**p["state"]["global_probabilities"])
+            codes = []
+            for code, probabilities in p["state"]["groups"]:
+                if type(code) is not int or code < 0 or code in codes:
+                    raise ValueError("Invalid or duplicate competition artifact code.")
+                codes.append(code)
+                OutcomeProbabilities(**probabilities)
+        elif p["kind"] == "logistic":
             state = p["state"]
             n = len(p["columns"])
             for key, shape in (
@@ -106,6 +126,11 @@ class PortableClassifier:
         p, state = self.payload, self.payload["state"]
         if p["kind"] == "frequency":
             return OutcomeProbabilities(**state)
+        if p["kind"] == "competition_frequency":
+            probabilities = dict(state["groups"]).get(
+                competition_code(row), state["global_probabilities"]
+            )
+            return OutcomeProbabilities(**probabilities)
         if p["kind"] == "logistic":
             logits = np.asarray(state["coef"]) @ ((x - state["mean"]) / state["scale"])
             logits += state["intercept"]
@@ -139,6 +164,17 @@ def export_classifier(model: ProbabilisticModel) -> PortableClassifier:
             kind="frequency",
             state=asdict(model.probabilities),
             classes=["home_win", "draw", "away_win"],
+        )
+    elif isinstance(model, CompetitionFrequencyModel):
+        from dataclasses import asdict
+
+        payload.update(
+            kind="competition_frequency",
+            classes=["home_win", "draw", "away_win"],
+            state={
+                "global_probabilities": asdict(model.global_probabilities),
+                "groups": [[code, asdict(p)] for code, p in model.groups],
+            },
         )
     elif isinstance(model, SklearnOutcomeModel):
         estimator = model.estimator

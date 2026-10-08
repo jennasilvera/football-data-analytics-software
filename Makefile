@@ -168,3 +168,7 @@ demo-v2-nested:
 .PHONY: demo-platform
 demo-platform:
 	PYTHONPATH=src $(PYTHON) scripts/demo_platform.py
+
+.PHONY: demo-v2-competition
+demo-v2-competition:
+	$(MAKE) demo-v2 V2_MODEL=competition-comparison V2_EXTRA_ARGS=--paired-uncertainty

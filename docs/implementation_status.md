@@ -35,6 +35,6 @@ Native research demos emit immutable JSON/manifests and Markdown diagnostics. Th
 
 ## Deliberate interface and scope decisions
 
-Operational forecasts reference canonical stored model/match IDs. Elo is a rating engine and feature provider rather than an invented calibrated 1X2 output. Global class-frequency is implemented; separate competition/confederation frequency models remain research extensions. Ranking-only classifier experiments use the ranking feature family; missing observations are explicit. Match-probability intervals are null until validated. Additional manually supplied football context is timestamped, not inferred from hindsight.
+Operational forecasts reference canonical stored model/match IDs. Elo is a rating engine and feature provider rather than an invented calibrated 1X2 output. Global and [competition-specific frequency baselines](competition_frequency_baseline.md) are implemented, including sparse-group shrinkage and unseen-group fallback. Historical confederation baselines still require effective-dated inputs. Ranking-only classifier experiments use the ranking feature family; missing observations are explicit. Match-probability intervals are null until validated. Additional manually supplied football context is timestamped, not inferred from hindsight.
 
 These distinctions prevent placeholder outputs from being presented as completed research. See [commercial readiness](commercialization_notes.md) for the evidence needed to release the software commercially and [model card](model_card.md) for modeling limitations.
