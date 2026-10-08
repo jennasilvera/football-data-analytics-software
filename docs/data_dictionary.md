@@ -278,6 +278,22 @@ catalog mapping is hashed into the feature version. See the
 | value | `T` | `required` |
 | metadata | `SourceMetadata` | `required` |
 
+### data.confederations.MembershipPeriod
+
+| Field | Type | Default |
+|---|---|---|
+| confederation | `Confederation` | `required` |
+| valid_from | `date` | `required` |
+| valid_to | `date \| None` | `None` |
+
+### data.confederations.MembershipRelease
+
+| Field | Type | Default |
+|---|---|---|
+| team_id | `str` | `required` |
+| periods | `tuple[MembershipPeriod, ...]` | `required` |
+| metadata | `SourceMetadata` | `required` |
+
 ### data.observations.MatchObservation
 
 | Field | Type | Default |

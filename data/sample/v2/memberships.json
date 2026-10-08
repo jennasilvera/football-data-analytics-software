@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "releases": [
+    {
+      "team_id": "ARG",
+      "periods": [
+        {
+          "confederation": "CONMEBOL",
+          "valid_from": "2018-01-01",
+          "valid_to": null
+        }
+      ],
+      "metadata": {
+        "source": "synthetic-membership-demo",
+        "ingested_at": "2020-06-01T00:00:00+00:00",
+        "available_at": "2019-01-01T00:00:00+00:00",
+        "source_record_id": "synthetic-ARG",
+        "source_version": "v1",
+        "leakage_risk": "safe",
+        "legal_use_notes": "Artificial membership publication fixture for synthetic pipeline tests; not a historical source archive."
+      }
+    },
+    {
+      "team_id": "BRA",
+      "periods": [
+        {
+          "confederation": "CONMEBOL",
+          "valid_from": "2018-01-01",
+          "valid_to": null
+        }
+      ],
+      "metadata": {
+        "source": "synthetic-membership-demo",
+        "ingested_at": "2020-06-01T00:00:00+00:00",
+        "available_at": "2019-01-01T00:00:00+00:00",
+        "source_record_id": "synthetic-BRA",
+        "source_version": "v1",
+        "leakage_risk": "safe",
+        "legal_use_notes": "Artificial membership publication fixture for synthetic pipeline tests; not a historical source archive."
+      }
+    },
+    {
+      "team_id": "FRA",
+      "periods": [
+        {
+          "confederation": "UEFA",
+          "valid_from": "2018-01-01",
+          "valid_to": null
+        }
+      ],
+      "metadata": {
+        "source": "synthetic-membership-demo",
+        "ingested_at": "2020-06-01T00:00:00+00:00",
+        "available_at": "2019-01-01T00:00:00+00:00",
+        "source_record_id": "synthetic-FRA",
+        "source_version": "v1",
+        "leakage_risk": "safe",
+        "legal_use_notes": "Artificial membership publication fixture for synthetic pipeline tests; not a historical source archive."
+      }
+    },
+    {
+      "team_id": "GER",
+      "periods": [
+        {
+          "confederation": "UEFA",
+          "valid_from": "2018-01-01",
+          "valid_to": null
+        }
+      ],
+      "metadata": {
+        "source": "synthetic-membership-demo",
+        "ingested_at": "2020-06-01T00:00:00+00:00",
+        "available_at": "2019-01-01T00:00:00+00:00",
+        "source_record_id": "synthetic-GER",
+        "source_version": "v1",
+        "leakage_risk": "safe",
+        "legal_use_notes": "Artificial membership publication fixture for synthetic pipeline tests; not a historical source archive."
+      }
+    }
+  ]
+}

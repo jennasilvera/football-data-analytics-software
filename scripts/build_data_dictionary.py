@@ -16,6 +16,7 @@ MODULES = (
     "domain.locations",
     "domain.probabilities",
     "data.contracts",
+    "data.confederations",
     "data.observations",
     "data.normalization",
     "features.base",

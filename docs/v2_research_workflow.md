@@ -145,3 +145,12 @@ known exact kickoff; they never become an earlier forecast feature.
 `--model all` and nested ensemble member sets are unchanged. See the
 [baseline specification](competition_frequency_baseline.md) for shrinkage, catalog
 identity and explicit unseen-group fallback semantics.
+
+## Historical confederation slices
+
+`--membership-history FILE.json` resolves each team's membership for the match date
+using the latest complete timeline published by its prediction cutoff. The research
+JSON embeds membership releases, lineage, coverage, assignments and slice metrics;
+a sibling `.confederations.md` report presents the scores. Unknown memberships
+remain in each partition. See [membership semantics](historical_confederations.md).
+Run `make demo-v2-confederations` for an explicitly synthetic publication fixture.
