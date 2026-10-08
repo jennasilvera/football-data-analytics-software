@@ -59,6 +59,10 @@ zero is not interpreted as observed football evidence. Glicko no-history prior i
 names, versions, groups and descriptions follow; source code is authoritative for
 units and computation. See linked squad, competition, travel and market semantics.
 
+Competition frequency additionally uses a nominal canonical competition code; its
+catalog mapping is hashed into the feature version. See the
+[baseline formulas and fallback policy](competition_frequency_baseline.md).
+
 ## Feature inventory
 
 | Feature | Version | Group | Definition |
@@ -193,6 +197,7 @@ units and computation. See linked squad, competition, travel and market semantic
 | manual.away.must_win | v1 | manual_context | Declared must_win; missing rather than inferred |
 | manual.away.draw_utility | v1 | manual_context | Declared draw_utility; missing rather than inferred |
 | manual.away.elimination_risk | v1 | manual_context | Declared elimination_risk; missing rather than inferred |
+| baseline.competition_code | competition_catalog_34f1dc5a50cd9a13fabad6dc7aaf2bec5d452ef5db763a3921a73ca7bdf950c1 | competition_identity | Nominal canonical competition code; exact grouping only, not an ordinal feature |
 
 ## Typed record fields
 
@@ -502,6 +507,17 @@ units and computation. See linked squad, competition, travel and market semantic
 |---|---|---|
 | model | `ProbabilisticModel` | `required` |
 | metadata | `ModelTrainingMetadata` | `required` |
+
+### models.competition_frequency.CompetitionFrequencyModel
+
+| Field | Type | Default |
+|---|---|---|
+| model_id | `str` | `required` |
+| feature_names | `tuple[str, ...]` | `required` |
+| feature_set_id | `str` | `required` |
+| imputation_policy_id | `str` | `required` |
+| global_probabilities | `OutcomeProbabilities` | `required` |
+| groups | `tuple[tuple[int, OutcomeProbabilities], ...]` | `required` |
 
 ### evaluation.metrics.ScoredPrediction
 

@@ -28,7 +28,12 @@ from football_analytics.features import (
     RollingFormFeatureProvider,
     build_historical_feature_dataset,
 )
+from football_analytics.features.base import FeatureProvider
 from football_analytics.models import ModelFamily, ModelTrainingSpec, train_sklearn_model
+from football_analytics.models.competition_frequency import (
+    CompetitionIdentityProvider,
+    train_competition_frequency,
+)
 from football_analytics.models.frequency import train_class_frequency
 from football_analytics.models.poisson import PoissonModel
 
@@ -90,13 +95,17 @@ def run_research(
     provider = RollingFormFeatureProvider(normalized.normalized)
     from football_analytics.features.composition import build_providers
 
-    providers = (
+    providers: list[FeatureProvider] = (
         [provider]
         if feature_groups is None
         else build_providers(
             normalized.normalized, catalogs, groups=feature_groups, context=feature_context
         )
     )
+    if model_spec.family is ModelFamily.COMPETITION_FREQUENCY:
+        if feature_groups is not None or feature_context:
+            raise ValueError("Competition baseline uses only canonical competition identity.")
+        providers = [CompetitionIdentityProvider(catalogs.competitions)]
     dataset = build_historical_feature_dataset(
         normalized.normalized,
         providers=[] if model_spec.family is ModelFamily.POISSON else providers,
@@ -135,7 +144,9 @@ def run_research(
             imputation_policy=imputation,
             model_spec=model_spec,
             trainer=(
-                train_class_frequency
+                train_competition_frequency
+                if model_spec.family is ModelFamily.COMPETITION_FREQUENCY
+                else train_class_frequency
                 if model_spec.family is ModelFamily.CLASS_FREQUENCY
                 else train_sklearn_model
             ),

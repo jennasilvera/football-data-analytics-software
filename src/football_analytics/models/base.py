@@ -20,6 +20,7 @@ class ModelFamily(StrEnum):
     LOGISTIC_REGRESSION = "logistic_regression"
     HIST_GRADIENT_BOOSTING = "hist_gradient_boosting"
     CLASS_FREQUENCY = "class_frequency"
+    COMPETITION_FREQUENCY = "competition_frequency"
     POISSON = "poisson"
     TEMPERATURE_SCALING = "temperature_scaling"
     CONVEX_ENSEMBLE = "convex_ensemble"

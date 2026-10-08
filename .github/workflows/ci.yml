@@ -45,6 +45,9 @@ jobs:
       - name: Run paired V2 model comparison
         run: make demo-v2-comparison
 
+      - name: Compare native competition frequency baseline
+        run: make demo-v2-competition
+
       - name: Run nested temporal probability research
         run: make demo-v2-nested
 

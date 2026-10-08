@@ -27,6 +27,7 @@ from football_analytics.models.artifacts import (
     save_poisson_model,
     save_probability_transform,
 )
+from football_analytics.models.competition_frequency import competition_frequency_spec
 from football_analytics.models.frequency import class_frequency_spec
 from football_analytics.models.poisson import poisson_spec
 from football_analytics.reports.comparison import render_model_comparison
@@ -113,7 +114,15 @@ def main(argv: list[str] | None = None) -> None:
     research.add_argument("--min-train", type=int, default=30)
     research.add_argument(
         "--model",
-        choices=["logistic", "hist-gradient-boosting", "class-frequency", "poisson", "all"],
+        choices=[
+            "logistic",
+            "hist-gradient-boosting",
+            "class-frequency",
+            "competition-frequency",
+            "competition-comparison",
+            "poisson",
+            "all",
+        ],
         default="logistic",
     )
     research.add_argument("--seed", type=int, default=42)
@@ -217,10 +226,20 @@ def main(argv: list[str] | None = None) -> None:
             )
         specs = {
             "class-frequency": class_frequency_spec(),
+            "competition-frequency": competition_frequency_spec(),
             "logistic": logistic_regression_spec(random_seed=args.seed),
             "hist-gradient-boosting": hist_gradient_boosting_spec(random_seed=args.seed),
             "poisson": poisson_spec(),
         }
+        selected_specs = tuple(
+            value
+            for key, value in specs.items()
+            if (
+                key in ("class-frequency", "competition-frequency")
+                if args.model == "competition-comparison"
+                else key != "competition-frequency"
+            )
+        )
         feature_groups = tuple(args.feature_groups.split(",")) if args.feature_groups else None
         feature_context = (
             json.loads(args.feature_context.read_text()) if args.feature_context else None
@@ -246,13 +265,13 @@ def main(argv: list[str] | None = None) -> None:
                 code_revision=args.code_revision,
             )
             runs, comparison = ablated.runs, ablated.comparison
-        elif args.model == "all":
+        elif args.model in ("all", "competition-comparison"):
             if args.postprocess_days is not None:
                 nested = run_nested_research(
                     observations=observations,
                     catalogs=catalogs,
                     split_policy=policy,
-                    model_specs=tuple(specs.values()),
+                    model_specs=selected_specs,
                     calibration_bins=args.calibration_bins,
                     feature_groups=feature_groups,
                     feature_context=feature_context,
@@ -269,7 +288,7 @@ def main(argv: list[str] | None = None) -> None:
                     observations=observations,
                     catalogs=catalogs,
                     split_policy=policy,
-                    model_specs=tuple(specs.values()),
+                    model_specs=selected_specs,
                     calibration_bins=args.calibration_bins,
                     code_revision=args.code_revision,
                     feature_groups=feature_groups,
