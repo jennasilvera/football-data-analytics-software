@@ -134,6 +134,11 @@ def main(argv: list[str] | None = None) -> None:
     )
     research.add_argument("--min-postprocess", type=int, default=30)
     research.add_argument("--min-diagnostic-sample", type=int, default=30)
+    research.add_argument(
+        "--membership-history",
+        type=Path,
+        help="Published historical confederation membership timelines",
+    )
     research.add_argument("--feature-groups", help="Comma-separated declared feature families")
     research.add_argument(
         "--feature-context", type=Path, help="Timestamped JSON feature observations"
@@ -381,6 +386,18 @@ def main(argv: list[str] | None = None) -> None:
         payload["feature_groups"] = feature_groups
         payload["feature_context"] = feature_context
         payload["diagnostics"] = [asdict(report) for report in diagnostics]
+        membership_reports: list[dict] = []
+        if args.membership_history is not None:
+            from football_analytics.data.confederations import load_membership_history
+            from football_analytics.evaluation.confederations import confederation_diagnostics
+
+            membership = load_membership_history(
+                args.membership_history, team_ids={team.team_id for team in catalogs.teams}
+            )
+            membership_reports = [
+                confederation_diagnostics(report, membership) for report in diagnostics
+            ]
+            payload["confederation_diagnostics"] = membership_reports
         payload["nested_holdout"] = (
             {
                 "holdout_days": args.postprocess_days,
@@ -396,6 +413,14 @@ def main(argv: list[str] | None = None) -> None:
             report_path.with_suffix(".diagnostics.md"),
             render_evaluation_diagnostics(diagnostics).encode(),
         )
+        confederation_path = None
+        if membership_reports:
+            from football_analytics.reports.confederations import render_confederation_diagnostics
+
+            confederation_path = publish_immutable(
+                report_path.with_suffix(".confederations.md"),
+                render_confederation_diagnostics(membership_reports).encode(),
+            )
         model_paths = [
             str(save_poisson_model(model, args.output / "models"))
             for run in runs
@@ -429,6 +454,7 @@ def main(argv: list[str] | None = None) -> None:
                 "metrics": asdict(result.backtest.aggregate_metrics),
                 "model_artifacts": model_paths,
                 "diagnostics_report": str(diagnostics_path),
+                "confederation_report": str(confederation_path) if confederation_path else None,
                 "comparison_report": str(comparison_path) if comparison_path else None,
             },
             indent=2,

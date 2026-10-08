@@ -172,3 +172,7 @@ demo-platform:
 .PHONY: demo-v2-competition
 demo-v2-competition:
 	$(MAKE) demo-v2 V2_MODEL=competition-comparison V2_EXTRA_ARGS=--paired-uncertainty
+
+.PHONY: demo-v2-confederations
+demo-v2-confederations:
+	$(MAKE) demo-v2 V2_MODEL=class-frequency V2_EXTRA_ARGS="--membership-history data/sample/v2/memberships.json"
