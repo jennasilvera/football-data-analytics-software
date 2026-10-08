@@ -52,4 +52,4 @@ The model is available for native research and typed replay; it is not silently
 inserted into existing operational forecast bundles.
 
 No historical confederation membership is inferred from a present-day team catalog.
-Confederation baselines still require effective-dated, publication-governed inputs.
+The [confederation baseline](confederation_frequency_baseline.md) uses explicit effective-dated, publication-governed inputs.

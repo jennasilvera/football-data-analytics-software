@@ -48,7 +48,7 @@ jobs:
       - name: Compare native competition frequency baseline
         run: make demo-v2-competition
 
-      - name: Evaluate historical confederation slices
+      - name: Compare confederation baseline and historical slices
         run: make demo-v2-confederations
 
       - name: Run nested temporal probability research

@@ -175,4 +175,4 @@ demo-v2-competition:
 
 .PHONY: demo-v2-confederations
 demo-v2-confederations:
-	$(MAKE) demo-v2 V2_MODEL=class-frequency V2_EXTRA_ARGS="--membership-history data/sample/v2/memberships.json"
+	$(MAKE) demo-v2 V2_MODEL=confederation-comparison V2_EXTRA_ARGS="--membership-history data/sample/v2/memberships.json"

@@ -198,6 +198,7 @@ catalog mapping is hashed into the feature version. See the
 | manual.away.draw_utility | v1 | manual_context | Declared draw_utility; missing rather than inferred |
 | manual.away.elimination_risk | v1 | manual_context | Declared elimination_risk; missing rather than inferred |
 | baseline.competition_code | competition_catalog_34f1dc5a50cd9a13fabad6dc7aaf2bec5d452ef5db763a3921a73ca7bdf950c1 | competition_identity | Nominal canonical competition code; exact grouping only, not an ordinal feature |
+| baseline.confederation_pair_code | confederation_pairs_0acc697fc20cb1aee416ffe341dbcd72455b512cbc7f52485d860cec010c4a6c | confederation_identity | Ordered home/away historical confederation pair; zero means global fallback |
 
 ## Typed record fields
 
@@ -525,6 +526,17 @@ catalog mapping is hashed into the feature version. See the
 | metadata | `ModelTrainingMetadata` | `required` |
 
 ### models.competition_frequency.CompetitionFrequencyModel
+
+| Field | Type | Default |
+|---|---|---|
+| model_id | `str` | `required` |
+| feature_names | `tuple[str, ...]` | `required` |
+| feature_set_id | `str` | `required` |
+| imputation_policy_id | `str` | `required` |
+| global_probabilities | `OutcomeProbabilities` | `required` |
+| groups | `tuple[tuple[int, OutcomeProbabilities], ...]` | `required` |
+
+### models.confederation_frequency.ConfederationFrequencyModel
 
 | Field | Type | Default |
 |---|---|---|

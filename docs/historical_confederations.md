@@ -71,6 +71,6 @@ A `.confederations.md` sibling file exposes coverage and slice scores for review
 make demo-v2-confederations
 ```
 
-The demo verifies integration, not confederation-specific predictive skill. Membership
-baselines, historical federation-strength estimation and sample-adequacy conclusions
-remain separate research work; diagnostic grouping alone does not establish them.
+The demo verifies integration, not confederation-specific predictive skill. The [confederation-pair baseline](confederation_frequency_baseline.md) now uses these
+timelines for training-only probability estimates. Historical federation-strength
+estimation and sample-adequacy conclusions remain separate research work.
