@@ -29,7 +29,15 @@ POST body:
 
 Use the actual IDs printed by ingestion/training. Method can be a bundle's base spec ID, `calibrated_<spec_id>` or `ensemble` when present. The server supplies prediction time and enforces pre-match eligibility, approval, model age, known identities and artifact integrity. Maximum body size is 16 KiB. Success includes `X-Request-ID`; structured request logs omit credentials and bodies.
 
-Collections accept `limit` (1–1000), `after` (previous `next_cursor`) and `as_of` (previous response's UTC timestamp). Retain the same `as_of` across pages to obtain a consistent historical view. Missing objects return 404, missing credentials 401, invalid requests/contracts 422, unapproved/stale serving candidates 409 and oversized bodies 413. Model lists expose metadata rather than full training bundles.
+Collections accept `limit` (1–1000), `after` (previous `next_cursor`) and `as_of` (previous response's UTC timestamp). Retain the same `as_of` across pages to obtain a consistent historical view. Missing objects return 404, missing credentials 401, invalid requests/contracts 422, unapproved/stale serving candidates or publication conflicts 409 and oversized bodies 413. Model lists expose metadata rather than full training bundles.
+
+Single-match API and CLI serving resolve model, review, fixture and market inputs at
+the request snapshot. Before publication, the write transaction checks the exact
+model/evidence/approval/fixture revisions and the fixture's pre-match deadline.
+Changed inputs or a deadline crossed during computation or lock acquisition publish
+no forecast (API 409; CLI exit 2). Successful forecasts become available at computation
+completion, not retroactively at the input snapshot. Single-match requests have no
+durable retry key; use `predict-batch` when an immutable run audit is required.
 
 ## CLI operations
 
