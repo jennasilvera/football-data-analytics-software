@@ -13,6 +13,7 @@ Business routes require `Authorization: Bearer <FOOTBALL_API_KEY>`. The key must
 | GET /teams/{team_id}/ratings | As-of replayed Glicko history |
 | GET /teams/{team_id}/report; /reports/team/{team_id} | Rating, recent form, schedule and residual intelligence |
 | GET /ratings; /ratings/movers | Current Glicko state; largest absolute last-period movements |
+| GET /forecast-batches; /forecast-batches/{run_id} | Paginated durable batch audits or one run |
 | GET /models/{model_id}/metrics | Linked research report |
 | GET /reports/match/{match_id} | Fixture/result, stored forecasts and post-match diagnostics |
 | GET /diagnostics/upsets | Latest pre-match forecast residuals, sorted by surprisal |
@@ -46,6 +47,7 @@ All operational commands accept `--database`; default comes from `FOOTBALL_DATAB
 | import-research / approve-model | Validate research consistency and serving-family coverage; bind human review to exact revisions |
 | revoke-model | Append a revocation with required review reason; stop serving |
 | predict | Forecast stored model/fixture, enforcing approval and freshness |
+| predict-batch / batch-report | Atomically forecast an inclusive UTC date window; inspect durable retry audit |
 | update-ratings | Replay and persist current Glicko states |
 | team-report / match-report / model-card | Auditable JSON reports using canonical IDs |
 | drift-report | Compare JSON arrays of materialized features from two samples |
@@ -79,3 +81,5 @@ source licensing and fitness for the intended use. No metric threshold auto-prom
 Dashboard collection views provide Previous, Next and Refresh controls. Navigation
 retains the API snapshot timestamp; Refresh starts a new snapshot. Counts are per-page,
 not total inventory counts.
+
+Batch operation and exit/retry semantics are covered in the [native daily runbook](daily_forecast_runbook.md).

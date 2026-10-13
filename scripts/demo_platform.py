@@ -123,6 +123,15 @@ def main():
         command("build-features", "--match-id", match_id)
         forecast = command("predict", "--model-id", model_id, "--match-id", match_id)
         assert abs(sum(forecast["probabilities"].values()) - 1) < 1e-12
+        batch_options = [
+            "--model-id", model_id, "--run-id", "synthetic-daily-acceptance",
+            "--from-date", now.date().isoformat(),
+            "--through-date", (now + timedelta(days=3)).date().isoformat(),
+        ]
+        batch = command("predict-batch", *batch_options)
+        assert batch["status"] == "completed" and batch["counts"]["forecasted"] == 1
+        assert command("predict-batch", *batch_options) == batch
+        assert command("batch-report", "--run-id", batch["run_id"]) == batch
         command("update-ratings")
         report = command("team-report", "--team", "ARG")
         assert report["next_match_outlook"]["match_id"] == match_id
@@ -152,6 +161,7 @@ def main():
         command("backup", "--output", str(backup))
         restored = Repository(backup)
         assert restored.scan("forecast") == repo.scan("forecast")
+        assert restored.scan("forecast_batch") == repo.scan("forecast_batch")
         print(
             json.dumps(
                 {

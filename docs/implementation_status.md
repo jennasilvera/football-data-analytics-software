@@ -12,8 +12,8 @@ Native platform release 0.3.0 completes an executable implementation of the prof
 | Research evaluation | Expanding/rolling folds, proper scores, reliability, paired comparison, team/competition/year/venue slices, publication-aware historical confederation slices, family ablation, block loss intervals, prediction/opening/closing market joins and paired bookmaker movements, drift | Verified membership publication archives and untouched real holdout |
 | Diagnostics/intelligence | Actual-result surprisal, residuals, miss classification, Glicko movements, form/schedule reports, descriptive watchlists and next stored forecast | Causal explanations and validated future trend signals |
 | API | All requested endpoint families, authentication, size limits, stable collection pagination, structured logs | Tenant identity, internet edge policy and measured capacity |
-| CLI | Ingestion through candidate training/review/prediction, ratings, reports, drift and backup | Provider-specific scheduled job ownership |
-| Dashboard | API-backed overview, ratings, forecasts, team/model diagnostics and post-match views, snapshot-preserving collection navigation | User research and production-scale interaction testing |
+| CLI | Ingestion through candidate training/review/prediction, atomic forecast batches with durable retries, ratings, reports, drift and backup | Provider-specific scheduled job ownership |
+| Dashboard | API-backed overview, ratings, forecasts, team/model diagnostics and post-match views, snapshot-preserving collection navigation and batch audits | User research and production-scale interaction testing |
 | Governance/docs | Experiment/model identity, source/catalog/context-matched research with metric verification, exact-revision approval/revocation, model card, field/feature dictionary, lineage and runbook | Independent scientific/legal sign-off |
 | Deployment | Pinned dependencies, nonroot containers, persistent volume, health checks, operational/recovery demo and CI | Provisioned host, TLS, monitoring, incident owners, recovery SLOs |
 

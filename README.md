@@ -55,6 +55,8 @@ football-analytics ingest-results --help
 football-analytics predict --help
 ```
 
+Daily fixture windows can be forecast atomically with `predict-batch`; durable run IDs support retries and the dashboard exposes batch audits. See the [native daily runbook](docs/daily_forecast_runbook.md).
+
 The operational flow is ingestion → training candidate → chronological evaluation → `import-research` → explicit `approve-model` review → stored-fixture prediction. Research linkage verifies source/catalog/context identity, metric consistency and serving-family coverage. Approval binds the exact model and evidence revisions; new evidence requires re-review, and `revoke-model` records a serving stop. Approval records a human decision; it does not establish statistical validity.
 
 ```bash

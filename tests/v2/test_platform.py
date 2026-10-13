@@ -333,6 +333,10 @@ def test_dashboard_all_populated_pages(monkeypatch, bundle):
         "/models": {"items": [{"model_id": "test-model"}]},
         "/ratings": [rating],
         "/predictions": {"items": [forecast], "truncated": False},
+        "/forecast-batches": {"items": [{
+            "run_id": "test-run", "status": "completed", "snapshot_at": "2020-06-01",
+            "counts": {"forecasted": 1}, "fixtures": [{"match_id": "future"}],
+        }]},
         "/reports/team/ARG": {
             "rating": rating,
             "recent_form": [{"points": 3}],
@@ -360,6 +364,7 @@ def test_dashboard_all_populated_pages(monkeypatch, bundle):
     for page in (
         "Ratings",
         "Match forecasts",
+        "Forecast batches",
         "Team intelligence",
         "Model diagnostics",
         "Post-match review",
