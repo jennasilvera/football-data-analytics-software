@@ -13,7 +13,11 @@ from football_analytics.models.postprocessing import content_id
 from football_analytics.services.forecasting import forecast_match
 from football_analytics.services.governance import require_approved_model
 from football_analytics.services.market import attach_market
-from football_analytics.storage.repository import PublicationDeadlineError, Repository
+from football_analytics.storage.repository import (
+    PublicationConflictError,
+    PublicationDeadlineError,
+    Repository,
+)
 
 
 def forecast_batch(
@@ -175,13 +179,27 @@ def forecast_batch(
             available_at=finished,
             recorded_at=finished,
             deadline=deadline,
+            expected_records=(
+                [
+                    ("model", model_id, report["lineage"]["model_record_id"]),
+                    ("model_metrics", model_id, report["lineage"]["metrics_record_id"]),
+                    ("model_release", model_id, report["lineage"]["approval_record_id"]),
+                    *[
+                        ("match", row["match_id"], row["match_record_id"])
+                        for row in report["fixtures"] if row["status"] == "forecasted"
+                    ],
+                ] if forecasts else None
+            ),
         )
-    except PublicationDeadlineError as exc:
+    except (PublicationDeadlineError, PublicationConflictError) as exc:
         report["status"] = "failed"
         report["errors"].append({"stage": "publication", "reason": str(exc)})
         for row in report["fixtures"]:
             if row["status"] == "forecasted":
-                row.update(status="withheld", reason="publication_deadline_closed")
+                row.update(status="withheld", reason=(
+                    "publication_input_changed" if isinstance(exc, PublicationConflictError)
+                    else "publication_deadline_closed"
+                ))
                 row.pop("forecast_id", None)
         report["counts"]["withheld"] += report["counts"]["forecasted"]
         report["counts"]["forecasted"] = 0

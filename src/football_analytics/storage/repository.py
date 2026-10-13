@@ -19,6 +19,10 @@ class PublicationDeadlineError(ValueError):
     """A time-sensitive transaction missed its final publication deadline."""
 
 
+class PublicationConflictError(ValueError):
+    """A reviewed input changed before publication acquired its write lock."""
+
+
 class Repository:
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -88,6 +92,7 @@ class Repository:
         self, kind: str, entity_id: str, payload: dict[str, Any],
         related: list[tuple[str, str, dict[str, Any], datetime]],
         *, available_at: datetime, recorded_at: datetime, deadline: datetime | None = None,
+        expected_records: list[tuple[str, str, str]] | None = None,
     ) -> dict[str, Any]:
         """Atomically publish an immutable request result and its related records.
 
@@ -120,6 +125,20 @@ class Repository:
                 if result.get("request_id") != payload["request_id"]:
                     raise ValueError("Run ID already belongs to a different request.")
                 return result
+            # Check after acquiring the write lock, on this same transaction. No
+            # writer can replace a reviewed input between this check and commit.
+            cutoff = max(ensure_utc(recorded_at), datetime.now(UTC)).isoformat()
+            for expected_kind, expected_entity, expected_id in expected_records or []:
+                current = db.execute(
+                    "SELECT record_id FROM records WHERE kind=? AND entity_id=? "
+                    "AND available_at<=? AND recorded_at<=? "
+                    "ORDER BY recorded_at DESC, sequence DESC LIMIT 1",
+                    (expected_kind, expected_entity, cutoff, cutoff),
+                ).fetchone()
+                if current is None or current[0] != expected_id:
+                    raise PublicationConflictError(
+                        f"Publication input changed: {expected_kind}/{expected_entity}."
+                    )
             if deadline is not None and datetime.now(UTC) >= deadline:
                 raise PublicationDeadlineError("Pre-match publication deadline passed.")
             for row in prepared:

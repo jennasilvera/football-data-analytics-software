@@ -324,3 +324,92 @@ def test_cli_storage_error_is_distinct_from_durable_batch_failure(setup, monkeyp
     assert "database is locked" in capsys.readouterr().err
     assert not repo.scan("forecast_batch")
     assert not repo.scan("forecast")
+
+
+@pytest.mark.parametrize("kind", ["model", "model_metrics", "model_release", "match"])
+def test_changed_publication_inputs_withhold_batch_and_retry_keeps_audit(setup, monkeypatch, kind):
+    repo, args, _ = setup
+    original_publish = repo.publish_once
+    changed = False
+
+    def publish_after_change(*positional, **kwargs):
+        nonlocal changed
+        if not changed:
+            changed = True
+            entity = "future" if kind == "match" else args["model_id"]
+            payload = repo.get(kind, entity)["payload"]
+            if kind == "model_release":
+                payload["status"] = "revoked"
+            elif kind == "match":
+                payload["match"]["status"] = "cancelled"
+            else:
+                payload["revision_note"] = "replaced while computing"
+            timestamp = datetime.now(UTC)
+            repo.put(kind, entity, payload, available_at=timestamp, recorded_at=timestamp)
+        return original_publish(*positional, **kwargs)
+
+    monkeypatch.setattr(repo, "publish_once", publish_after_change)
+    report = forecast_batch(repo, **args)
+    assert report["status"] == "failed"
+    assert report["counts"]["withheld"] == 1
+    assert report["counts"]["forecasted"] == 0
+    assert report["fixtures"][0]["reason"] == "publication_input_changed"
+    assert report["errors"][0]["stage"] == "publication"
+    assert kind in report["errors"][0]["reason"]
+    assert not repo.scan("forecast")
+    assert forecast_batch(repo, **args) == report
+    assert repo.get("forecast_batch", args["run_id"])["payload"] == report
+
+
+def test_retry_returns_winning_publication_even_when_input_revisions_changed(tmp_path):
+    repo = Repository(tmp_path / "db")
+    now = datetime.now(UTC)
+    expected = repo.put("model", "m", {}, available_at=now, recorded_at=now)
+    args = dict(
+        available_at=now, recorded_at=now, expected_records=[("model", "m", expected)]
+    )
+    winner = repo.publish_once("forecast_batch", "r", {"request_id": "same"}, [], **args)
+    later = datetime.now(UTC)
+    repo.put("model", "m", {"changed": True}, available_at=later, recorded_at=later)
+    assert repo.publish_once("forecast_batch", "r", {"request_id": "same"}, [], **args) == winner
+
+
+def test_publication_rechecks_input_after_waiting_for_an_ingestion_lock(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    from threading import Event
+
+    from football_analytics.storage.repository import PublicationConflictError
+
+    repo = Repository(tmp_path / "lock-race")
+    now = datetime.now(UTC)
+    expected = repo.put("model", "m", {}, available_at=now, recorded_at=now)
+    connection = repo.connection
+    opened = Event()
+
+    @contextmanager
+    def observed_connection():
+        with connection() as db:
+            opened.set()
+            yield db
+
+    def publish():
+        return repo.publish_once(
+            "forecast_batch", "r", {"request_id": "same"},
+            [("forecast", "f", {}, now)],
+            available_at=now, recorded_at=now,
+            expected_records=[("model", "m", expected)],
+        )
+
+    # Hold a real write transaction while a second connection tries to publish.
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with connection() as writer:
+            writer.execute("BEGIN IMMEDIATE")
+            writer.execute("DELETE FROM records WHERE kind='model'")
+            monkeypatch.setattr(repo, "connection", observed_connection)
+            pending = pool.submit(publish)
+            assert opened.wait(timeout=5)
+        # The deletion becomes visible only when the writer releases its lock.
+        with pytest.raises(PublicationConflictError, match="model/m"):
+            pending.result(timeout=5)
+    assert not repo.scan("forecast")
+    assert not repo.scan("forecast_batch")

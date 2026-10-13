@@ -53,6 +53,16 @@ Pre-match deadlines are checked after computation and inside the write transacti
 including after acquiring the write lock and immediately before commit. If the run
 misses a deadline, its forecast writes are rolled back and a failure audit is retained.
 
+Before inserting forecasts, the same write transaction verifies that the model,
+research evidence, approval and every forecasted fixture still have the exact
+record IDs captured at the input snapshot. A revocation, re-review, model/evidence
+replacement or fixture correction visible when that lock is acquired fails the
+whole batch with a `publication_input_changed` reason and a durable audit.
+Use a new run ID after reviewing the change. This is intentionally conservative:
+even a correction that leaves probabilities unchanged requires a fresh run.
+New fixtures and odds updates remain outside the original input snapshot; this
+check does not turn the batch into a continuously refreshed feed.
+
 The snapshot timestamp describes forecast inputs. The completion timestamp and
 repository availability describe the computed output; no output is recorded as
 available at the earlier input snapshot. Commit visibility is governed by SQLite's
