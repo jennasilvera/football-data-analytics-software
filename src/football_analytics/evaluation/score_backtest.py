@@ -17,7 +17,12 @@ from football_analytics.evaluation.metrics import ScoredPrediction, evaluate_pre
 from football_analytics.evaluation.splits import TemporalFoldBuildReport
 from football_analytics.features.dataset import HistoricalFeatureExample
 from football_analytics.features.history import DEFAULT_RESULT_ELIGIBILITY_POLICY
-from football_analytics.models.base import ModelTrainingSpec
+from football_analytics.models.base import ModelFamily, ModelTrainingSpec
+from football_analytics.models.opponent_poisson import (
+    OpponentPoissonModel,
+    fit_opponent_poisson,
+    opponent_config_from_spec,
+)
 from football_analytics.models.poisson import (
     SCORE_CONTEXT_ID,
     SCORE_MISSING_POLICY_ID,
@@ -42,7 +47,7 @@ class BacktestScoreForecast:
 class ScoreBacktestResult:
     backtest: TemporalBacktestResult
     score_forecasts: tuple[BacktestScoreForecast, ...]
-    models: tuple[PoissonModel, ...]
+    models: tuple[PoissonModel | OpponentPoissonModel, ...]
 
 
 def _records_for(
@@ -78,7 +83,11 @@ def run_poisson_backtest(
     records: Sequence[CanonicalMatchRecord],
     model_spec: ModelTrainingSpec,
 ) -> ScoreBacktestResult:
-    config = config_from_spec(model_spec)
+    joint_config = (
+        opponent_config_from_spec(model_spec)
+        if model_spec.family is ModelFamily.OPPONENT_POISSON else None
+    )
+    config = config_from_spec(model_spec) if joint_config is None else None
     if not fold_report.folds:
         raise ValueError("Poisson backtest requires at least one valid fold.")
     if (
@@ -97,7 +106,12 @@ def run_poisson_backtest(
     for fold in fold_report.folds:
         train = _records_for(fold.train, lookup)
         test = _records_for(fold.test, lookup)
-        model = fit_poisson(train, training_cutoff=fold.cutoff, config=config)
+        model: PoissonModel | OpponentPoissonModel
+        if joint_config is not None:
+            model = fit_opponent_poisson(train, training_cutoff=fold.cutoff, config=joint_config)
+        else:
+            assert config is not None
+            model = fit_poisson(train, training_cutoff=fold.cutoff, config=config)
         models.append(model)
         predictions = []
         scored = []

@@ -51,6 +51,9 @@ jobs:
       - name: Compare confederation baseline and historical slices
         run: make demo-v2-confederations
 
+      - name: Compare joint opponent-adjusted goal model
+        run: make demo-v2-opponent-poisson
+
       - name: Run nested temporal probability research
         run: make demo-v2-nested
 

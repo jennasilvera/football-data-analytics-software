@@ -8,7 +8,7 @@ Native platform release 0.3.0 completes an executable implementation of the prof
 | Data and revision integrity | UTC provenance, leakage controls, append-only bitemporal SQLite revisions and as-of reads | Unknown historical revisions cannot be reconstructed |
 | Ratings | Elo replay/parity, Glicko-1 periods, deviation/inactivity and rating history | Football-specific tuning and uncertainty coverage |
 | Features | Form 5/10/20, strength, schedule, competition, rankings, adjacent-publication ranking trends/buckets, squad, travel, market, manual context; status/lineage; persisted form vectors | Real exogenous input availability; specialized research signals |
-| Forecasting/calibration | Frequency, logistic, histogram boosting, Poisson, held-out temperature transforms and convex ensemble; portable JSON replay | Real-data performance, validated match-probability intervals |
+| Forecasting/calibration | Frequency, logistic, histogram boosting, legacy-parity and joint opponent-adjusted Poisson, held-out temperature transforms and convex ensemble; portable JSON replay | Real-data performance, validated match-probability intervals |
 | Research evaluation | Expanding/rolling folds, proper scores, reliability, paired comparison, team/competition/year/venue slices, publication-aware historical confederation slices, family ablation, block loss intervals, prediction/opening/closing market joins and paired bookmaker movements, drift | Verified membership publication archives and untouched real holdout |
 | Diagnostics/intelligence | Actual-result surprisal, residuals, miss classification, Glicko movements, form/schedule reports, descriptive watchlists and next stored forecast | Causal explanations and validated future trend signals |
 | API | All requested endpoint families, authentication, size limits, stable collection pagination, structured logs | Tenant identity, internet edge policy and measured capacity |
@@ -26,6 +26,7 @@ pytest
 make demo-v2
 make demo-v2-comparison
 make demo-v2-nested
+make demo-v2-opponent-poisson
 make demo-platform
 # Container acceptance is also exercised by GitHub Actions:
 docker compose up --build --detach --wait
@@ -35,7 +36,7 @@ Native research demos emit immutable JSON/manifests and Markdown diagnostics. Th
 
 ## Deliberate interface and scope decisions
 
-Operational forecasts reference canonical stored model/match IDs. Elo is a rating engine and feature provider rather than an invented calibrated 1X2 output. Global and [competition-specific frequency baselines](competition_frequency_baseline.md) are implemented, including sparse-group shrinkage and unseen-group fallback. The historical confederation-pair baseline is also implemented with explicit publication-governed membership inputs and global fallback. Verified real membership archives remain required. Ranking-only classifier experiments use the ranking feature family; missing observations are explicit. Match-probability intervals are null until validated. Additional manually supplied football context is timestamped, not inferred from hindsight.
+Operational forecasts reference canonical stored model/match IDs. Elo is a rating engine and feature provider rather than an invented calibrated 1X2 output. Global and [competition-specific frequency baselines](competition_frequency_baseline.md) are implemented, including sparse-group shrinkage and unseen-group fallback. The historical confederation-pair baseline is also implemented with explicit publication-governed membership inputs and global fallback. Verified real membership archives remain required. The [opponent-adjusted Poisson challenger](opponent_adjusted_poisson.md) jointly fits attack/defence and home effects in each chronological fold; it is opt-in research and does not replace serving defaults. Ranking-only classifier experiments use the ranking feature family; missing observations are explicit. Match-probability intervals are null until validated. Additional manually supplied football context is timestamped, not inferred from hindsight.
 
 These distinctions prevent placeholder outputs from being presented as completed research. See [commercial readiness](commercialization_notes.md) for the evidence needed to release the software commercially and [model card](model_card.md) for modeling limitations.
 

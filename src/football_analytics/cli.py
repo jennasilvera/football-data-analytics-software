@@ -30,6 +30,7 @@ from football_analytics.models.artifacts import (
 from football_analytics.models.competition_frequency import competition_frequency_spec
 from football_analytics.models.confederation_frequency import confederation_frequency_spec
 from football_analytics.models.frequency import class_frequency_spec
+from football_analytics.models.opponent_poisson import opponent_poisson_spec
 from football_analytics.models.poisson import poisson_spec
 from football_analytics.reports.comparison import render_model_comparison
 from football_analytics.reports.diagnostics import render_evaluation_diagnostics
@@ -124,6 +125,8 @@ def main(argv: list[str] | None = None) -> None:
             "confederation-frequency",
             "confederation-comparison",
             "poisson",
+            "opponent-poisson",
+            "poisson-comparison",
             "all",
         ],
         default="logistic",
@@ -253,8 +256,10 @@ def main(argv: list[str] | None = None) -> None:
             "logistic": logistic_regression_spec(random_seed=args.seed),
             "hist-gradient-boosting": hist_gradient_boosting_spec(random_seed=args.seed),
             "poisson": poisson_spec(),
+            "opponent-poisson": opponent_poisson_spec(),
         }
         comparison_members = {
+            "poisson-comparison": ("poisson", "opponent-poisson"),
             "competition-comparison": ("class-frequency", "competition-frequency"),
             "confederation-comparison": ("class-frequency", "confederation-frequency"),
         }
@@ -289,7 +294,7 @@ def main(argv: list[str] | None = None) -> None:
                 code_revision=args.code_revision,
             )
             runs, comparison = ablated.runs, ablated.comparison
-        elif args.model in ("all", "competition-comparison", "confederation-comparison"):
+        elif args.model == "all" or args.model in comparison_members:
             if args.postprocess_days is not None:
                 nested = run_nested_research(
                     observations=observations,
@@ -322,7 +327,7 @@ def main(argv: list[str] | None = None) -> None:
             )
             runs = compared.runs
             comparison = compared.comparison
-            spec = specs["class-frequency"]
+            spec = selected_specs[0]
         else:
             spec = specs[args.model]
             runs = (
