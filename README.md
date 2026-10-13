@@ -54,7 +54,7 @@ football-analytics ingest-results --help
 football-analytics predict --help
 ```
 
-The operational flow is ingestion → training candidate → chronological evaluation → `import-research` → explicit `approve-model` review → stored-fixture prediction. Source digests must match when linking research. Approval records a human decision; it does not establish statistical validity.
+The operational flow is ingestion → training candidate → chronological evaluation → `import-research` → explicit `approve-model` review → stored-fixture prediction. Research linkage verifies source/catalog/context identity, metric consistency and serving-family coverage. Approval binds the exact model and evidence revisions; new evidence requires re-review, and `revoke-model` records a serving stop. Approval records a human decision; it does not establish statistical validity.
 
 ```bash
 export FOOTBALL_API_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"

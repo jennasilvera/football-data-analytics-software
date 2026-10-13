@@ -47,6 +47,7 @@ latest-row cache: reads choose the last revision visible at the requested cutoff
 | schedule | Days since last match and declared congestion/history counts | Prior eligible matches | Date-only precision retained; no future fixtures used as completed history |
 | competition | Declared competition kind, stage, importance and neutral/home context | Catalog plus timestamped match context | Unknown stage/host stays missing; no future standings inferred |
 | rankings | Latest eligible ranks/points and home-minus-away differences | Source publication <= prediction | Missing/expired rank or points remains explicit |
+| ranking_trends | Opt-in ordinal rank buckets (1..10, 11..25, 26..50, 51..100, 101+), previous-minus-current rank, current-minus-previous points and publication gap days | Adjacent safe publications <= prediction, same source | Missing previous/points stays missing; split source IDs across methodology changes; buckets are declared, not fitted |
 | squad | Available/injured/suspended/uncertain player counts and declared strength/continuity proxies | Latest eligible player observations | Absence is not assumed healthy; late lineup/injury reports excluded |
 | market | Proportional devig p_i=(1/odds_i)/sum(1/odds); overround=sum(1/odds)-1; eligible snapshot movement | Publication <= prediction; safe risk; regulation settlement | Missing markets remain missing; closing benchmark never an earlier feature |
 | travel | Great-circle distance from declared team reference to known venue | Timestamped locations | Proxy, not actual itinerary; unknown venue/reference remains missing |
@@ -144,6 +145,14 @@ catalog mapping is hashed into the feature version. See the
 | fifa.home.points | fifa_ranking_v1 | team_strength | Latest home-team FIFA ranking points at the prediction cutoff. |
 | fifa.away.points | fifa_ranking_v1 | team_strength | Latest away-team FIFA ranking points at the prediction cutoff. |
 | fifa.points_diff_home_minus_away | fifa_ranking_v1 | team_strength | Home FIFA ranking points minus away FIFA ranking points. |
+| fifa_trend.home.rank_bucket | fifa_ranking_trends_v1 | team_strength | Ordinal bucket: 1=1..10, 2=11..25, 3=26..50, 4=51..100, 5=101+. |
+| fifa_trend.home.rank_improvement | fifa_ranking_trends_v1 | team_strength | Previous rank minus latest rank; positive means improvement. |
+| fifa_trend.home.points_change | fifa_ranking_trends_v1 | team_strength | Latest points minus previous points from adjacent publications. |
+| fifa_trend.home.publication_gap_days | fifa_ranking_trends_v1 | team_strength | Days between adjacent eligible ranking publications. |
+| fifa_trend.away.rank_bucket | fifa_ranking_trends_v1 | team_strength | Ordinal bucket: 1=1..10, 2=11..25, 3=26..50, 4=51..100, 5=101+. |
+| fifa_trend.away.rank_improvement | fifa_ranking_trends_v1 | team_strength | Previous rank minus latest rank; positive means improvement. |
+| fifa_trend.away.points_change | fifa_ranking_trends_v1 | team_strength | Latest points minus previous points from adjacent publications. |
+| fifa_trend.away.publication_gap_days | fifa_ranking_trends_v1 | team_strength | Days between adjacent eligible ranking publications. |
 | squad.home.player_observation_count | squad_availability_v1 | squad_availability | Players with cutoff-eligible availability observations. |
 | squad.home.mean_availability_probability | squad_availability_v1 | squad_availability | Mean source-provided player availability probability. |
 | squad.home.expected_unavailable_player_count | squad_availability_v1 | squad_availability | Sum of one minus availability probability across observed players. |

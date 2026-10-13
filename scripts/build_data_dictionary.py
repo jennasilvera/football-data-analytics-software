@@ -54,6 +54,7 @@ def main():
             "schedule",
             "competition",
             "rankings",
+            "ranking_trends",
             "squad",
             "market",
             "travel",

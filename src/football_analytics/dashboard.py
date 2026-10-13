@@ -3,7 +3,7 @@
 import json
 import os
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 
 import pandas as pd
@@ -35,10 +35,41 @@ def fetch(path: str):
         return json.load(response)
 
 
+def paged(path: str, label: str):
+    # Cursor history and fixed as_of keep Previous/Next on the same snapshot.
+    state_key = "collection:" + base + ":" + path
+    if state_key not in st.session_state:
+        st.session_state[state_key] = {"cursors": [None], "as_of": None}
+    state = st.session_state[state_key]
+    params = {}
+    if state["cursors"][-1] is not None:
+        params["after"] = state["cursors"][-1]
+    if state["as_of"] is not None:
+        params["as_of"] = state["as_of"]
+    response = fetch(path + ("?" + urlencode(params) if params else ""))
+    state["as_of"] = response.get("as_of")
+    previous, following, refresh = st.columns(3)
+    if previous.button("Previous " + label, disabled=len(state["cursors"]) == 1):
+        state["cursors"].pop()
+        st.rerun()
+    cursor = response.get("next_cursor")
+    if following.button("Next " + label, disabled=not cursor):
+        if cursor in state["cursors"]:
+            raise ValueError("API returned a repeated cursor")
+        state["cursors"].append(cursor)
+        st.rerun()
+    if refresh.button("Refresh " + label):
+        del st.session_state[state_key]
+        st.rerun()
+    st.caption(f"{label.capitalize()} · page {len(state['cursors'])} · "
+               f"{len(response['items'])} returned")
+    return response
+
+
 try:
     if page == "Overview":
         st.json(fetch("/health"))
-        teams, models = fetch("/teams"), fetch("/models")
+        teams, models = paged("/teams", "teams"), paged("/models", "models")
         a, b = st.columns(2)
         a.metric("Teams returned", len(teams["items"]))
         b.metric("Registered models returned", len(models["items"]))
@@ -57,9 +88,7 @@ try:
         if rows:
             st.bar_chart(pd.DataFrame(rows).set_index("team_id")[["rating"]])
     elif page == "Match forecasts":
-        forecasts = fetch("/predictions")
-        if forecasts["truncated"]:
-            st.warning("The API returned a bounded page. More forecasts exist.")
+        forecasts = paged("/predictions", "forecasts")
         choices = {f["forecast_id"]: f for f in forecasts["items"]}
         if choices:
             chosen = st.selectbox("Forecast", list(choices))
@@ -77,7 +106,7 @@ try:
         else:
             st.info("No forecasts have been stored.")
     elif page == "Team intelligence":
-        teams = fetch("/teams")["items"]
+        teams = paged("/teams", "teams")["items"]
         if teams:
             team = st.selectbox("Team", [row["team_id"] for row in teams])
             report = fetch("/reports/team/" + quote(team, safe=""))
@@ -89,7 +118,7 @@ try:
                     pd.DataFrame(report["rating_history"]).set_index("effective_date")[["rating"]]
                 )
     elif page == "Model diagnostics":
-        models = fetch("/models")["items"]
+        models = paged("/models", "models")["items"]
         if models:
             model = st.selectbox("Model", [row["model_id"] for row in models])
             report = fetch("/models/" + quote(model, safe="") + "/metrics")

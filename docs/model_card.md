@@ -25,7 +25,7 @@ Glicko-1 uses daily simultaneous rating periods, initial 1500/RD350, and RD infl
 
 Predeclare temporal expanding/rolling folds, feature families and sample minima. Inner holdouts fit temperature/ensemble parameters before untouched outer outcomes. Report log loss, Brier, RPS, accuracy, reliability bins, competition/team/year/venue slices and coverage. Compare models on identical training/evaluation identities; use family ablations and strictly cutoff-joined market benchmarks. Block-bootstrap loss intervals disclose block assumptions and return insufficient coverage when fewer than four blocks exist.
 
-Promotion requires linked research with matching source digest and an explicit review reason. Operators must inspect feature/model correspondence and an untouched final evaluation period. Approval is an auditable decision, not a performance threshold or license certificate. Synthetic acceptance approval is confined to a temporary database.
+Promotion requires source/catalog/context-matched research with reproducible metrics, manifest linkage, serving-model feature coverage and an explicit review reason. Approval binds exact model/evidence revisions; importing new evidence requires re-review, and `revoke-model` stops serving. Operators must still inspect model parameters, source truth and an untouched final evaluation period. Approval is an auditable decision, not a performance threshold or license certificate. Synthetic acceptance approval is confined to a temporary database.
 
 ## Interpretability, uncertainty and bias
 

@@ -90,8 +90,8 @@ def market_benchmark(
     *,
     timing: str = "prediction_time",
 ) -> dict[str, Any]:
-    if timing not in ("prediction_time", "closing"):
-        raise ValueError("Market timing must be prediction_time or closing.")
+    if timing not in ("prediction_time", "opening", "closing"):
+        raise ValueError("Market timing must be prediction_time, opening or closing.")
     from football_analytics.evaluation.diagnostics import build_evaluation_diagnostics
 
     # Reuse canonical outcome, fold, target-basis and pre-match-time verification.
@@ -119,7 +119,7 @@ def market_benchmark(
             raise ValueError("Missing canonical market benchmark match.")
         match = source[prediction.match_id].match
         cutoff = datetime.fromisoformat(prediction.prediction_time_iso)
-        if timing == "closing":
+        if timing in ("opening", "closing"):
             if match.kickoff_at is None:
                 excluded.append({"match_id": match.match_id, "reason": "unknown_exact_kickoff"})
                 continue
@@ -135,7 +135,11 @@ def market_benchmark(
                 previous = latest.get(snapshot.market_source_id)
                 if previous is None or (
                     previous.metadata.available_at is not None
-                    and previous.metadata.available_at < available
+                    and (
+                        (available < previous.metadata.available_at)
+                        if timing == "opening"
+                        else (previous.metadata.available_at < available)
+                    )
                 ):
                     latest[snapshot.market_source_id] = snapshot
         if not latest:
@@ -158,6 +162,16 @@ def market_benchmark(
                 "model_log_loss": model_metrics.log_loss,
                 "market_log_loss": market_metrics.log_loss,
                 "bookmakers": sorted(latest),
+                "quotes": [
+                    {
+                        "bookmaker": book,
+                        "available_at": quote.metadata.available_at.isoformat(),
+                        "probabilities": asdict(devig_decimal_odds(quote).probabilities),
+                        "source_record_id": quote.metadata.source_record_id,
+                    }
+                    for book, quote in sorted(latest.items())
+                    if quote.metadata.available_at is not None
+                ],
                 "cutoff": cutoff.isoformat(),
                 "source_record_ids": sorted(
                     s.metadata.source_record_id or "unknown" for s in latest.values()
@@ -168,6 +182,11 @@ def market_benchmark(
         "backtest_run_id": backtest.backtest_run_id,
         "timing": timing,
         "closing_is_evaluation_only": timing == "closing",
+        "evaluation_only": timing in ("opening", "closing"),
+        "selection_note": (
+            "Earliest supplied safe pre-kickoff quote per bookmaker; not proven market opening"
+            if timing == "opening" else "Latest supplied safe quote per bookmaker at cutoff"
+        ),
         "total_predictions": len(predictions),
         "matched_predictions": len(rows),
         "coverage": len(rows) / len(predictions) if predictions else 0,
@@ -181,3 +200,41 @@ def market_benchmark(
         else None,
     }
     return {"benchmark_id": content_id("market_benchmark_", body), **body}
+
+
+def market_timing_comparison(opening: dict, closing: dict) -> dict:
+    """Pair the same match/bookmaker, avoiding consensus-composition changes."""
+    if opening["timing"] != "opening" or closing["timing"] != "closing" or (
+        opening["backtest_run_id"] != closing["backtest_run_id"]
+    ):
+        raise ValueError("Timing comparison requires opening/closing from the same backtest.")
+    left = {
+        (row["match_id"], quote["bookmaker"]): quote
+        for row in opening["rows"] for quote in row["quotes"]
+    }
+    right = {
+        (row["match_id"], quote["bookmaker"]): quote
+        for row in closing["rows"] for quote in row["quotes"]
+    }
+    rows = []
+    for match_id, book in sorted(left.keys() & right.keys()):
+        a, b = left[(match_id, book)], right[(match_id, book)]
+        rows.append({
+            "match_id": match_id, "bookmaker": book,
+            "opening": a, "closing": b,
+            "distinct_publications": a["available_at"] != b["available_at"],
+            "probability_change": {
+                outcome: b["probabilities"][outcome] - a["probabilities"][outcome]
+                for outcome in ("home_win", "draw", "away_win")
+            },
+        })
+    body = {
+        "opening_benchmark_id": opening["benchmark_id"],
+        "closing_benchmark_id": closing["benchmark_id"],
+        "paired_bookmaker_matches": len(rows), "rows": rows,
+        "unpaired_opening": len(left.keys() - right.keys()),
+        "unpaired_closing": len(right.keys() - left.keys()),
+        "evaluation_only": True,
+        "note": "Supplied de-vigged quote movement; not returns or proven market opening lines",
+    }
+    return {"comparison_id": content_id("market_timing_", body), **body}

@@ -140,6 +140,14 @@ def main():
                 == 200
             )
             assert client.get(f"/models/{model_id}/metrics").status_code == 200
+            request = {"model_id": model_id, "match_id": match_id}
+            command("import-research", "--model-id", model_id, "--input", research["report"])
+            assert client.post("/predict", json=request).status_code == 409
+            command("approve-model", "--model-id", model_id, "--reason", "Reviewed new evidence")
+            command("revoke-model", "--model-id", model_id, "--reason", "Synthetic revocation test")
+            assert client.post("/predict", json=request).status_code == 409
+            command("approve-model", "--model-id", model_id, "--reason", "Synthetic recovery test")
+            assert client.post("/predict", json=request).status_code == 200
         backup = work / "recovery.sqlite3"
         command("backup", "--output", str(backup))
         restored = Repository(backup)
