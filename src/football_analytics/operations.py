@@ -25,7 +25,7 @@ from football_analytics.data.serialization import json_safe, match_from_dict
 from football_analytics.domain import MatchStatus
 from football_analytics.domain.scores import ScoreBasis
 from football_analytics.models.postprocessing import content_id
-from football_analytics.services.forecasting import forecast_match, train_forecast_bundle
+from football_analytics.services.forecasting import train_forecast_bundle
 from football_analytics.services.intelligence import ratings, team_report
 from football_analytics.storage.files import publish_immutable
 from football_analytics.storage.repository import Repository
@@ -351,22 +351,12 @@ def execute(args, repo: Repository, now: datetime):
             method=args.method, max_model_age_days=args.max_model_age_days,
         )
     if command == "predict":
-        bundle = repo.get("model", args.model_id, as_of=now)["payload"]
-        age = (now - datetime.fromisoformat(bundle["training_cutoff"])).total_seconds() / 86400
-        if args.max_model_age_days <= 0 or age > args.max_model_age_days:
-            raise ValueError("Model history exceeds configured freshness limit.")
-        source = repo.get("match", args.match_id)["payload"]
-        from football_analytics.services.governance import require_approved_model
+        from football_analytics.services.serving import predict_and_publish
 
-        require_approved_model(repo, args.model_id, as_of=now)
-        forecast = forecast_match(
-            bundle, match_from_dict(source["match"]), prediction_time=now, method=args.method
+        return predict_and_publish(
+            repo, model_id=args.model_id, match_id=args.match_id, now=now,
+            method=args.method, max_model_age_days=args.max_model_age_days,
         )
-        from football_analytics.services.market import attach_market
-
-        forecast = attach_market(repo, forecast, now)
-        repo.put("forecast", forecast["forecast_id"], forecast, available_at=now, recorded_at=now)
-        return forecast
     if command == "update-ratings":
         result = ratings(repo, now)
         for row in result:

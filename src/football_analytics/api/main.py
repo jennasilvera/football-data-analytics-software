@@ -12,15 +12,18 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from football_analytics.config import Settings
-from football_analytics.data.serialization import match_from_dict
-from football_analytics.services.forecasting import forecast_match
 from football_analytics.services.intelligence import (
     available_records,
     post_match_diagnostics,
     ratings,
     team_report,
 )
-from football_analytics.storage.repository import Repository
+from football_analytics.services.serving import ServingConflictError, predict_and_publish
+from football_analytics.storage.repository import (
+    PublicationConflictError,
+    PublicationDeadlineError,
+    Repository,
+)
 
 logger = logging.getLogger("football_analytics.api")
 
@@ -176,28 +179,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/predict", dependencies=auth)
     def predict(body: PredictRequest):
-        now = datetime.now(UTC)
-        model = repo.get("model", body.model_id, as_of=now)["payload"]
-        from football_analytics.services.governance import require_approved_model
-
         try:
-            require_approved_model(repo, body.model_id, as_of=now)
-        except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        cutoff = datetime.fromisoformat(model["training_cutoff"])
-        if (now - cutoff).total_seconds() / 86400 > settings.max_model_age_days:
-            raise HTTPException(
-                status_code=409, detail="Model history exceeds configured freshness limit"
+            return predict_and_publish(
+                repo, model_id=body.model_id, match_id=body.match_id,
+                now=datetime.now(UTC), method=body.method,
+                max_model_age_days=settings.max_model_age_days,
             )
-        source = repo.get("match", body.match_id)["payload"]
-        forecast = forecast_match(
-            model, match_from_dict(source["match"]), prediction_time=now, method=body.method
-        )
-        from football_analytics.services.market import attach_market
-
-        forecast = attach_market(repo, forecast, now)
-        repo.put("forecast", forecast["forecast_id"], forecast, available_at=now, recorded_at=now)
-        return forecast
+        except (ServingConflictError, PublicationConflictError, PublicationDeadlineError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/ratings", dependencies=auth)
     def rating_list():

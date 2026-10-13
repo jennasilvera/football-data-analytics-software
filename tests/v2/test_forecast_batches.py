@@ -413,3 +413,118 @@ def test_publication_rechecks_input_after_waiting_for_an_ingestion_lock(tmp_path
             pending.result(timeout=5)
     assert not repo.scan("forecast")
     assert not repo.scan("forecast_batch")
+
+
+@pytest.mark.parametrize("kind", ["model", "model_metrics", "model_release", "match"])
+def test_single_forecast_rejects_replaced_inputs(setup, monkeypatch, kind):
+    from football_analytics.services import serving
+    from football_analytics.storage.repository import PublicationConflictError
+
+    repo, args, _ = setup
+    compute = serving.forecast_match
+
+    def replace_input(*positional, **kwargs):
+        result = compute(*positional, **kwargs)
+        entity = "future" if kind == "match" else args["model_id"]
+        payload = repo.get(kind, entity)["payload"]
+        payload["revision_note"] = "concurrent replacement"
+        timestamp = datetime.now(UTC)
+        repo.put(kind, entity, payload, available_at=timestamp, recorded_at=timestamp)
+        return result
+
+    monkeypatch.setattr(serving, "forecast_match", replace_input)
+    with pytest.raises(PublicationConflictError, match=kind):
+        serving.predict_and_publish(
+            repo, model_id=args["model_id"], match_id="future",
+            now=args["now"], max_model_age_days=5000,
+        )
+    assert not repo.scan("forecast")
+
+
+def test_single_forecast_publication_uses_completion_time_and_snapshot_fixture(setup):
+    from football_analytics.services.serving import predict_and_publish
+
+    repo, args, fixture = setup
+    # A future revision must not replace the fixture visible at the request snapshot.
+    fixture("future", away="UNKNOWN", recorded=args["now"] + timedelta(days=1))
+    result = predict_and_publish(
+        repo, model_id=args["model_id"], match_id="future",
+        now=args["now"], max_model_age_days=5000,
+    )
+    stored = repo.get("forecast", result["forecast_id"])
+    assert stored["payload"] == json_safe(result)
+    assert datetime.fromisoformat(stored["available_at"]) > args["now"]
+    assert not repo.scan("forecast", as_of=args["now"])
+
+
+@pytest.mark.parametrize("interface", ["api", "cli"])
+def test_single_forecast_interfaces_reject_publication_after_kickoff(
+    setup, monkeypatch, capsys, interface
+):
+    from football_analytics.storage import repository
+
+    repo, args, _ = setup
+
+    class LateClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return args["now"] + timedelta(days=3)
+
+    monkeypatch.setattr(repository, "datetime", LateClock)
+    if interface == "api":
+        key = "single-forecast-tests-more-than-24"
+        client = TestClient(create_app(Settings(repo.path, key, max_model_age_days=5000)))
+        response = client.post(
+            "/predict", headers={"Authorization": "Bearer " + key},
+            json={"model_id": args["model_id"], "match_id": "future"},
+        )
+        assert response.status_code == 409
+        assert "deadline" in response.json()["detail"]
+    else:
+        with pytest.raises(SystemExit) as exc:
+            main([
+                "predict", "--database", str(repo.path), "--model-id", args["model_id"],
+                "--match-id", "future", "--max-model-age-days", "5000",
+            ])
+        assert exc.value.code == 2
+        assert "deadline" in capsys.readouterr().err
+    assert not repo.scan("forecast")
+
+
+def test_single_forecast_rejects_mismatched_stored_match_identity(setup):
+    from football_analytics.services.serving import predict_and_publish
+
+    repo, args, _ = setup
+    source = repo.get("match", "future")["payload"]
+    source["match"]["match_id"] = "different"
+    now = datetime.now(UTC)
+    repo.put("match", "future", source, available_at=now, recorded_at=now)
+    with pytest.raises(ValueError, match="identity"):
+        predict_and_publish(
+            repo, model_id=args["model_id"], match_id="future", now=now,
+            max_model_age_days=5000,
+        )
+    assert not repo.scan("forecast")
+
+
+def test_guarded_put_many_rolls_back_if_deadline_closes_before_commit(tmp_path, monkeypatch):
+    from football_analytics.storage import repository
+
+    repo = Repository(tmp_path / "deadline")
+    now = datetime.now(UTC)
+    calls = 0
+
+    class ClosingClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            nonlocal calls
+            calls += 1
+            return now + timedelta(seconds=2 if calls >= 3 else 0)
+
+    monkeypatch.setattr(repository, "datetime", ClosingClock)
+    with pytest.raises(repository.PublicationDeadlineError):
+        repo.put_many(
+            [("forecast", "a", {}, now), ("forecast", "b", {}, now)],
+            recorded_at=now, deadline=now + timedelta(seconds=1),
+        )
+    assert not repo.scan("forecast")

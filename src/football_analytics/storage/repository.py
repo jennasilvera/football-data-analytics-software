@@ -76,9 +76,17 @@ class Repository:
         items: list[tuple[str, str, dict[str, Any], datetime]],
         *,
         recorded_at: datetime | None = None,
+        expected_records: list[tuple[str, str, str]] | None = None,
+        deadline: datetime | None = None,
     ) -> list[str]:
-        prepared = _prepare_records(items, recorded_at or datetime.now(UTC))
+        recorded_at = ensure_utc(recorded_at or datetime.now(UTC))
+        deadline = ensure_utc(deadline) if deadline is not None else None
+        prepared = _prepare_records(items, recorded_at)
         with self.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            _check_publication_inputs(db, expected_records, recorded_at)
+            if deadline is not None and datetime.now(UTC) >= deadline:
+                raise PublicationDeadlineError("Pre-match publication deadline passed.")
             for row in prepared:
                 if not db.execute("SELECT 1 FROM records WHERE record_id=?", (row[2],)).fetchone():
                     db.execute(
@@ -86,6 +94,8 @@ class Repository:
                         "payload) VALUES(?,?,?,?,?,?)",
                         row,
                     )
+            if deadline is not None and datetime.now(UTC) >= deadline:
+                raise PublicationDeadlineError("Pre-match publication deadline passed.")
         return [row[2] for row in prepared]
 
     def publish_once(
@@ -125,20 +135,7 @@ class Repository:
                 if result.get("request_id") != payload["request_id"]:
                     raise ValueError("Run ID already belongs to a different request.")
                 return result
-            # Check after acquiring the write lock, on this same transaction. No
-            # writer can replace a reviewed input between this check and commit.
-            cutoff = max(ensure_utc(recorded_at), datetime.now(UTC)).isoformat()
-            for expected_kind, expected_entity, expected_id in expected_records or []:
-                current = db.execute(
-                    "SELECT record_id FROM records WHERE kind=? AND entity_id=? "
-                    "AND available_at<=? AND recorded_at<=? "
-                    "ORDER BY recorded_at DESC, sequence DESC LIMIT 1",
-                    (expected_kind, expected_entity, cutoff, cutoff),
-                ).fetchone()
-                if current is None or current[0] != expected_id:
-                    raise PublicationConflictError(
-                        f"Publication input changed: {expected_kind}/{expected_entity}."
-                    )
+            _check_publication_inputs(db, expected_records, recorded_at)
             if deadline is not None and datetime.now(UTC) >= deadline:
                 raise PublicationDeadlineError("Pre-match publication deadline passed.")
             for row in prepared:
@@ -243,3 +240,24 @@ def _prepare_records(
         serialized = json.dumps(payload, sort_keys=True, allow_nan=False)
         prepared.append((kind, entity_id, identity, available, recorded, serialized))
     return prepared
+
+
+def _check_publication_inputs(
+    db: sqlite3.Connection,
+    expected_records: list[tuple[str, str, str]] | None,
+    recorded_at: datetime,
+) -> None:
+    # Check after acquiring the write lock, on this same transaction. No
+    # writer can replace a reviewed input between this check and commit.
+    cutoff = max(ensure_utc(recorded_at), datetime.now(UTC)).isoformat()
+    for expected_kind, expected_entity, expected_id in expected_records or []:
+        current = db.execute(
+            "SELECT record_id FROM records WHERE kind=? AND entity_id=? "
+            "AND available_at<=? AND recorded_at<=? "
+            "ORDER BY recorded_at DESC, sequence DESC LIMIT 1",
+            (expected_kind, expected_entity, cutoff, cutoff),
+        ).fetchone()
+        if current is None or current[0] != expected_id:
+            raise PublicationConflictError(
+                f"Publication input changed: {expected_kind}/{expected_entity}."
+            )
