@@ -81,11 +81,13 @@ class Repository:
         expected_records: list[tuple[str, str, str | None]] | None = None,
         deadline: datetime | None = None,
     ) -> list[str]:
-        recorded_at = ensure_utc(recorded_at or datetime.now(UTC))
         deadline = ensure_utc(deadline) if deadline is not None else None
-        prepared = _prepare_records(items, recorded_at)
         with self.connection() as db:
             db.execute("BEGIN IMMEDIATE")
+            # Default recording time is assigned after lock acquisition, not at
+            # request start; delayed decisions must not sort behind earlier writes.
+            recorded_at = ensure_utc(recorded_at or datetime.now(UTC))
+            prepared = _prepare_records(items, recorded_at)
             _check_publication_inputs(db, expected_records, recorded_at)
             if deadline is not None and datetime.now(UTC) >= deadline:
                 raise PublicationDeadlineError("Pre-match publication deadline passed.")

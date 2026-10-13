@@ -47,15 +47,43 @@ Research import and approval fail closed when primary run metrics/calibration ca
 be reproduced or manifest/feature/model coverage is inconsistent. Re-import returns
 a model to candidate status atomically; serving checks the reviewed evidence and
 model record IDs at the request timestamp. Audit history survives revocation and backup.
-Single-match API/CLI serving and batch publication verify reviewed model/evidence/approval and fixture
-revisions inside the write transaction, withholding publication if they changed
-during computation or lock acquisition. Approval and research import likewise reject concurrent changes to model, evidence
-or release state, including creation of previously absent records. Tests cover tampered
-predictions/metrics/lineage, replaced evidence, re-review,
-revocation, recovery and UI cursor navigation. Auxiliary narrative/diagnostic outputs
+Single-match API/CLI serving and batch publication verify reviewed model, evidence,
+approval and fixture revisions inside the write transaction, withholding publication
+if they changed during computation or lock acquisition. Approval and research import
+likewise reject concurrent changes to model, evidence or release state, including
+creation of previously absent records. Review recording times are assigned after the
+write lock is acquired, preserving the publication order of delayed revocations.
+Verified backups are published atomically without replacing existing files.
+
+Tests cover tampered predictions/metrics/lineage, replaced evidence, concurrent
+reviews, delayed revocations, forecast deadlines, durable retries, backup failure
+recovery and UI cursor navigation. Auxiliary narrative/diagnostic outputs
 are not independent proof of the primary research sample.
 
 This completes the native software acceptance pass. Empirical validation and a live
 commercial deployment remain separate projects requiring real licensed data,
 independent evaluation and operator-selected infrastructure. The table above retains
 those boundaries explicitly; synthetic acceptance does not close them.
+
+
+## Completion and handoff
+
+The native implementation and its repository-contained acceptance work are complete.
+The CI workflow is the release gate: lint, native static types, the complete test
+suite, all research demonstrations, operational governance/forecast/recovery
+acceptance, the retained legacy workflow and container smoke checks must pass on
+the exact proposed commit before merge.
+
+The remaining work requires external inputs and evidence:
+
+| Next gate | Required input | Acceptance evidence |
+|---|---|---|
+| Real data onboarding | Selected provider, access and permitted uses; publication/revision archives | Coverage, identity, timing and regulation-score audit |
+| Empirical validation | Frozen real training/evaluation data and untouched holdout | Reproduced scores, calibration and subgroup results; justified model selection |
+| Live deployment | Chosen host and identity system, TLS, secret lifecycle and operators | Capacity/security review, monitoring, incident ownership and off-host recovery drill |
+| Commercial release | Data redistribution/training rights and product/support decisions | Independent scientific and legal sign-off |
+
+These gates are not replaced by adding more synthetic tests or optional model
+families. Start the next phase by selecting the real data source and intended
+deployment environment; no provider subscription, public deployment or production
+model approval is implied by completion of the software implementation.

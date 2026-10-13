@@ -88,7 +88,11 @@ model replacement or evidence import rejects the stale operation without writing
 a decision or partial evidence. Absence is checked too: two first-time imports
 cannot silently replace each other. A conflict exits 2; inspect the latest records
 and rerun the review or import deliberately. Revocation remains an unconditional
-operator action and is not blocked by an evidence change.
+operator action and is not blocked by an evidence change. Review/import recording
+timestamps are assigned after acquiring the write lock. A delayed revocation
+therefore sorts after an approval that published first, even when the revocation
+request started earlier. The declared review/input timestamp is retained separately;
+as-of queries cannot see the decision before it was recorded.
 
 These checks establish artifact consistency and declared coverage. A reviewer must
 still verify source truth, hyperparameter suitability, independent holdout evidence,

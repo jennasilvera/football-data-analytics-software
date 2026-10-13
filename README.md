@@ -1,10 +1,10 @@
 # Football Data Analytics Software
 
-Football Data Analytics Software is a research-grade analytics and forecasting platform for senior men’s national-team football. The system combines rating models, calibrated machine learning, expected-goals modeling, market benchmarking, and post-match diagnostics to produce reproducible football intelligence across international matches.
+Football Data Analytics Software is an analytics and forecasting platform for senior men’s national-team football. The system combines rating models, calibrated machine learning, expected-goals modeling, market benchmarking, and post-match diagnostics to produce reproducible football intelligence across international matches.
 
 [![CI](https://github.com/jennasilvera/football-data-analytics-software/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/football-data-analytics-software/actions/workflows/ci.yml)
 
-The native `football_analytics` package provides an executable research and operational platform. The retained `wc_forecast` package preserves legacy workflows and regression coverage. **Synthetic demonstrations verify software behavior and not predictive performance or commercial readiness.**
+The native `football_analytics` package provides an executable research and operational platform. The retained `wc_forecast` package preserves legacy workflows and regression coverage. **Synthetic demonstrations verify software behavior and not predictive performance or commercial readiness.** The native implementation is complete; remaining real-data and production release gates are listed in the [completion and handoff](docs/implementation_status.md#completion-and-handoff).
 
 ## Scope and data integrity
 
