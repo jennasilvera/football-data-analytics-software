@@ -189,3 +189,84 @@ def test_dashboard_cursor_navigation_preserves_snapshot(monkeypatch):
     assert app.selectbox[0].options == ["A"]
     next(b for b in app.button if b.label == "Refresh teams").click().run(timeout=15)
     assert ("/teams", {}) == [call for call in calls if call[0] == "/teams"][-1]
+
+
+@pytest.mark.parametrize("command", ["approve-model", "import-research"])
+@pytest.mark.parametrize("changed_kind", ["model", "model_metrics", "model_release"])
+@pytest.mark.parametrize("existing_release", [True, False])
+def test_review_rejects_concurrent_input_changes(
+    evidence, tmp_path, monkeypatch, command, changed_kind, existing_release
+):
+    from football_analytics.services import governance
+    from football_analytics.storage.repository import PublicationConflictError
+
+    report, bundle = evidence
+    repo = Repository(tmp_path / "db")
+    start = datetime(2020, 7, 1, tzinfo=UTC)
+    now = start + timedelta(seconds=1)
+    model_id = bundle["bundle_id"]
+    repo.put("model", model_id, bundle, available_at=start, recorded_at=start)
+    repo.put("model_metrics", model_id, report, available_at=start, recorded_at=start)
+    if existing_release:
+        repo.put(
+            "model_release", model_id, {"status": "candidate"},
+            available_at=start, recorded_at=start,
+        )
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps(report))
+    original = governance.validate_research
+    changed_id = None
+
+    def concurrent_change(candidate, model):
+        nonlocal changed_id
+        original(candidate, model)
+        timestamp = now + timedelta(seconds=1)
+        if changed_kind == "model_release":
+            replacement = {"status": "revoked", "reason": "Concurrent operator decision"}
+        else:
+            replacement = dict(repo.get(changed_kind, model_id)["payload"])
+            replacement["revision_note"] = "Concurrent replacement"
+        changed_id = repo.put(
+            changed_kind, model_id, replacement, available_at=timestamp, recorded_at=timestamp
+        )
+
+    monkeypatch.setattr(governance, "validate_research", concurrent_change)
+    options = ["--reason", "Review"] if command == "approve-model" else ["--input", str(path)]
+    args = parser().parse_args([command, "--model-id", model_id, *options])
+    with pytest.raises(PublicationConflictError, match=changed_kind):
+        execute(args, repo, now)
+    assert repo.get(changed_kind, model_id)["record_id"] == changed_id
+    with repo.connection() as db:
+        # Only the deliberately concurrent write was added: no partial evidence/decision.
+        assert db.execute("SELECT COUNT(*) FROM records").fetchone() == (
+            3 + int(existing_release),
+        )
+
+
+def test_first_research_import_rejects_concurrent_first_evidence(evidence, tmp_path, monkeypatch):
+    from football_analytics.services import governance
+    from football_analytics.storage.repository import PublicationConflictError
+
+    report, bundle = evidence
+    repo = Repository(tmp_path / "db")
+    now = datetime(2020, 7, 1, tzinfo=UTC)
+    model_id = bundle["bundle_id"]
+    repo.put("model", model_id, bundle, available_at=now, recorded_at=now)
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps(report))
+    original = governance.validate_research
+
+    def first_import(candidate, model):
+        original(candidate, model)
+        later = now + timedelta(seconds=1)
+        repo.put("model_metrics", model_id, report, available_at=later, recorded_at=later)
+
+    monkeypatch.setattr(governance, "validate_research", first_import)
+    args = parser().parse_args([
+        "import-research", "--model-id", model_id, "--input", str(path),
+    ])
+    with pytest.raises(PublicationConflictError, match="model_metrics"):
+        execute(args, repo, now)
+    assert not repo.scan("model_release")
+    with repo.connection() as db:
+        assert db.execute("SELECT COUNT(*) FROM records").fetchone() == (2,)

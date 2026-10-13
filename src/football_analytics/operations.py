@@ -307,10 +307,19 @@ def execute(args, repo: Repository, now: datetime):
         return {"ingested": len(validated), "kind": kind}
     if command == "import-research":
         report = json.loads(args.input.read_text())
-        bundle = repo.get("model", args.model_id, as_of=now)["payload"]
+        model = repo.get("model", args.model_id, as_of=now)
+        release_rows = repo.list("model_release", entity_id=args.model_id, as_of=now)
+        metrics_rows = repo.list("model_metrics", entity_id=args.model_id, as_of=now)
+        expected: list[tuple[str, str, str | None]] = [
+            ("model", args.model_id, model["record_id"]),
+            ("model_release", args.model_id,
+             release_rows[0]["record_id"] if release_rows else None),
+            ("model_metrics", args.model_id,
+             metrics_rows[0]["record_id"] if metrics_rows else None),
+        ]
         from football_analytics.services.governance import validate_research
 
-        validate_research(report, bundle)
+        validate_research(report, model["payload"])
         repo.put_many(
             [
                 ("model_metrics", args.model_id, report, now),
@@ -318,7 +327,7 @@ def execute(args, repo: Repository, now: datetime):
                     "status": "candidate", "reason": "Research evidence imported; review required",
                 }, now),
             ],
-            recorded_at=now,
+            recorded_at=now, expected_records=expected,
         )
         return {"model_id": args.model_id, "linked_research_runs": len(report["runs"])}
     if command in ("approve-model", "revoke-model"):
@@ -333,12 +342,22 @@ def execute(args, repo: Repository, now: datetime):
             from football_analytics.services.governance import validate_research
 
             metrics = repo.get("model_metrics", args.model_id, as_of=now)
+            previous = repo.list("model_release", entity_id=args.model_id, as_of=now)
+            expected = [
+                ("model", args.model_id, model["record_id"]),
+                ("model_metrics", args.model_id, metrics["record_id"]),
+                ("model_release", args.model_id, previous[0]["record_id"] if previous else None),
+            ]
             validate_research(metrics["payload"], model["payload"])
             release.update(
                 status="approved", metrics_record_id=metrics["record_id"],
                 model_record_id=model["record_id"],
             )
-        repo.put("model_release", args.model_id, release, available_at=now, recorded_at=now)
+        repo.put_many(
+            [("model_release", args.model_id, release, now)],
+            recorded_at=now,
+            expected_records=expected if command == "approve-model" else None,
+        )
         return {"model_id": args.model_id, **release}
     if command == "batch-report":
         return repo.get("forecast_batch", args.run_id)["payload"]
