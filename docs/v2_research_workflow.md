@@ -135,8 +135,21 @@ it requires at least two declared families and identical temporal evaluation sam
 `--paired-uncertainty` adds calendar-block paired-loss intervals with explicit sample
 and dependence assumptions. `--market-snapshots FILE.json` adds a prediction-time
 benchmark with publication/settlement checks and unmatched-coverage reasons.
-Closing-time benchmarks are available through the typed evaluation service and require
-known exact kickoff; they never become an earlier forecast feature.
+Use `--market-timing prediction_time|opening|closing|all` with that file. The default
+remains prediction-time. Opening selects the earliest supplied safe quote per bookmaker;
+closing selects the latest at or before exact kickoff. Both require known exact kickoff
+and are evaluation-only: neither becomes an earlier forecast feature. An archive's
+first quote is not proof of the true market opening. `all` also emits paired
+match/bookmaker probability movements, preserving endpoint publication times and
+source record IDs. A single available quote is marked as no distinct publication;
+changing bookmaker populations are not treated as price movement.
+
+`--feature-groups rankings,ranking_trends` enables the opt-in adjacent-publication
+rank/points changes, publication gap and declared rank buckets. Both consume the same
+`rankings` context array. The established `rankings` schema remains unchanged.
+Changes are raw publication-to-publication differences, not annualized trend estimates.
+Providers must use separate source IDs when their ranking-points methodology changes;
+no older non-null points are substituted for missing adjacent observations.
 
 ## Competition-aware benchmark
 

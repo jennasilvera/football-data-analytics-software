@@ -34,6 +34,7 @@ from football_analytics.features.base import (
     PredictionContext,
 )
 from football_analytics.features.competition import MatchCompetitionContextObservation
+from football_analytics.features.fifa_ranking import FifaRankingTrendProvider
 from football_analytics.features.history import completed_record_is_before_cutoff
 from football_analytics.features.travel import (
     TeamReferenceLocationObservation,
@@ -283,6 +284,10 @@ def build_providers(
                         lambda b: {**b, "stage": CompetitionStage(b["stage"])},
                     ),
                 )
+            )
+        elif group == "ranking_trends":
+            providers.append(
+                FifaRankingTrendProvider(observations("rankings", FifaRankingObservation))
             )
         elif group == "rankings":
             providers.append(

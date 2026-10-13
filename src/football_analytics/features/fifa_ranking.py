@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
@@ -30,10 +31,10 @@ class FifaRankingObservation:
         team_id = self.team_id.strip()
         if not team_id:
             raise ValueError("team_id must not be blank.")
-        if self.rank <= 0:
-            raise ValueError("rank must be positive.")
-        if self.points is not None and self.points < 0:
-            raise ValueError("points must not be negative.")
+        if type(self.rank) is not int or self.rank <= 0:
+            raise ValueError("rank must be a positive integer.")
+        if self.points is not None and (not math.isfinite(self.points) or self.points < 0):
+            raise ValueError("points must be finite and nonnegative.")
         object.__setattr__(self, "team_id", team_id)
 
 
@@ -352,3 +353,84 @@ def _definitions(
         )
         for name, description in specs
     )
+
+
+class FifaRankingTrendProvider(FifaRankingFeatureProvider):
+    """Opt-in adjacent-publication changes and declared ordinal rank buckets.
+
+    Points comparisons require the same source; providers must split source IDs
+    when their points methodology changes. No older non-null points are substituted.
+    """
+
+    provider_id = "fifa_ranking_trends_v1"
+
+    def __init__(self, observations: Sequence[FifaRankingObservation], **kwargs) -> None:
+        super().__init__(observations, **kwargs)
+        descriptions = {
+            "rank_bucket": "Ordinal bucket: 1=1..10, 2=11..25, 3=26..50, 4=51..100, 5=101+.",
+            "rank_improvement": "Previous rank minus latest rank; positive means improvement.",
+            "points_change": "Latest points minus previous points from adjacent publications.",
+            "publication_gap_days": "Days between adjacent eligible ranking publications.",
+        }
+        self._definitions = tuple(
+            FeatureDefinition(
+                f"fifa_trend.{side}.{metric}", self.provider_id, "team_strength", description
+            )
+            for side in ("home", "away")
+            for metric, description in descriptions.items()
+        )
+
+    def compute(self, context: PredictionContext) -> tuple[FeatureValue, ...]:
+        result = []
+        for side, team_id in (
+            ("home", context.match.home_team_id), ("away", context.match.away_team_id)
+        ):
+            resolved = self._resolve(team_id, context=context)
+            latest = resolved.observation
+            previous = None
+            if latest is not None:
+                assert latest.metadata.available_at is not None
+                candidates = [
+                    row for row in self._by_team[team_id]
+                    if row.metadata.available_at is not None
+                    and row.metadata.available_at < latest.metadata.available_at
+                    and row.metadata.leakage_risk is LeakageRisk.SAFE
+                ]
+                previous = candidates[-1] if candidates else None
+                if previous and previous.metadata.source != latest.metadata.source:
+                    previous = None
+            for metric in (
+                "rank_bucket", "rank_improvement", "points_change", "publication_gap_days"
+            ):
+                value: float | None = None
+                used = [latest] if latest else []
+                reason = resolved.missing_reason or FeatureMissingReason.NO_HISTORY
+                if latest and metric == "rank_bucket":
+                    value = 1 + sum(latest.rank > bound for bound in (10, 25, 50, 100))
+                elif latest and previous:
+                    used.append(previous)
+                    if metric == "rank_improvement":
+                        value = previous.rank - latest.rank
+                    elif metric == "points_change":
+                        if latest.points is not None and previous.points is not None:
+                            value = latest.points - previous.points
+                        else:
+                            reason = FeatureMissingReason.UPSTREAM_UNAVAILABLE
+                    else:
+                        assert latest.metadata.available_at is not None
+                        assert previous.metadata.available_at is not None
+                        value = (
+                            latest.metadata.available_at - previous.metadata.available_at
+                        ).total_seconds() / 86400
+                result.append(FeatureValue(
+                    self._definition(f"fifa_trend.{side}.{metric}"),
+                    FeatureStatus.OBSERVED if value is not None else FeatureStatus.MISSING,
+                    context.prediction_time,
+                    float(value) if value is not None else None,
+                    missing_reason=None if value is not None else reason,
+                    lineage=FeatureLineage(source_record_ids=tuple(sorted({
+                        row.metadata.source_record_id for row in used
+                        if row.metadata.source_record_id is not None
+                    }))),
+                ))
+        return tuple(result)

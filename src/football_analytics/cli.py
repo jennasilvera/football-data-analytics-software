@@ -149,6 +149,11 @@ def main(argv: list[str] | None = None) -> None:
     research.add_argument("--ablate", action="store_true")
     research.add_argument("--paired-uncertainty", action="store_true")
     research.add_argument("--market-snapshots", type=Path)
+    research.add_argument(
+        "--market-timing", choices=("prediction_time", "opening", "closing", "all"),
+        default="prediction_time",
+        help="Opening/closing are retrospective benchmarks requiring exact kickoff times",
+    )
     research.add_argument("--code-revision")
     research.add_argument("--legal-use-notes")
     research.add_argument("--output", type=Path, default=Path("outputs/v2-research"))
@@ -390,10 +395,24 @@ def main(argv: list[str] | None = None) -> None:
                 basis = ScoreBasis(body.pop("score_basis", "unknown"))
                 body["metadata"] = metadata_from_dict(body["metadata"])
                 snapshots.append((MarketSnapshotObservation(**body), basis))
-            payload["market_benchmarks"] = [
-                market_benchmark(run.backtest, run.normalization.normalized, snapshots)
+            benchmarks = [
+                market_benchmark(run.backtest, run.normalization.normalized, snapshots, timing=t)
                 for run in runs
+                for t in (
+                    ("prediction_time", "opening", "closing")
+                    if args.market_timing == "all" else (args.market_timing,)
+                )
             ]
+            payload["market_benchmarks"] = benchmarks
+            if args.market_timing == "all":
+                from football_analytics.evaluation.extensions import market_timing_comparison
+
+                payload["market_timing_comparisons"] = [
+                    market_timing_comparison(benchmarks[i + 1], benchmarks[i + 2])
+                    for i in range(0, len(benchmarks), 3)
+                ]
+        elif args.market_timing != "prediction_time":
+            raise ValueError("--market-timing requires --market-snapshots.")
         if args.ablate:
             payload["ablation"] = {
                 "removed_groups": ablated.removed_groups,

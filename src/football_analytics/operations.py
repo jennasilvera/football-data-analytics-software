@@ -43,6 +43,7 @@ COMMANDS = {
     "match-report",
     "model-card",
     "approve-model",
+    "revoke-model",
     "backup",
     "serve",
     "dashboard",
@@ -85,7 +86,7 @@ def parser() -> argparse.ArgumentParser:
             c.add_argument("--feature-context", type=Path)
         if name in ("ingest-rankings", "ingest-odds", "import-research"):
             c.add_argument("--input", type=Path, required=True)
-        if name in ("predict", "approve-model", "model-card", "import-research"):
+        if name in ("predict", "approve-model", "revoke-model", "model-card", "import-research"):
             c.add_argument("--model-id", required=True)
         if name in ("predict", "match-report", "build-features"):
             c.add_argument("--match-id", required=True)
@@ -96,7 +97,7 @@ def parser() -> argparse.ArgumentParser:
                 type=int,
                 default=int(os.getenv("FOOTBALL_MAX_MODEL_AGE_DAYS", "90")),
             )
-        if name == "approve-model":
+        if name in ("approve-model", "revoke-model"):
             c.add_argument("--reason", required=True)
         if name == "team-report":
             c.add_argument("--team", required=True, help="Canonical team ID")
@@ -294,45 +295,48 @@ def execute(args, repo: Repository, now: datetime):
         return {"ingested": len(validated), "kind": kind}
     if command == "import-research":
         report = json.loads(args.input.read_text())
-        bundle = repo.get("model", args.model_id)["payload"]
-        if report.get("source_sha256") not in {
-            r["metadata"]["source_version"] for r in bundle["records"]
-        }:
-            raise ValueError("Research source digest does not match the model's training source.")
-        from football_analytics.experiments import ExperimentManifest
+        bundle = repo.get("model", args.model_id, as_of=now)["payload"]
+        from football_analytics.services.governance import validate_research
 
-        if not report.get("runs"):
-            raise ValueError("Research report must contain evaluated runs.")
-        for row in report["runs"]:
-            ExperimentManifest.from_dict(row["manifest"])
-        repo.put("model_metrics", args.model_id, report, available_at=now, recorded_at=now)
-        return {"model_id": args.model_id, "linked_research_runs": len(report["runs"])}
-    if command == "approve-model":
-        repo.get("model", args.model_id)
-        repo.get("model_metrics", args.model_id)
-        if not args.reason.strip():
-            raise ValueError("Model approval requires a review reason.")
-        repo.put(
-            "model_release",
-            args.model_id,
-            {
-                "status": "approved",
-                "reason": args.reason,
-                "reviewed_at": now.isoformat(),
-                "automatic_promotion": False,
-            },
-            available_at=now,
+        validate_research(report, bundle)
+        repo.put_many(
+            [
+                ("model_metrics", args.model_id, report, now),
+                ("model_release", args.model_id, {
+                    "status": "candidate", "reason": "Research evidence imported; review required",
+                }, now),
+            ],
             recorded_at=now,
         )
-        return {"model_id": args.model_id, "status": "approved"}
+        return {"model_id": args.model_id, "linked_research_runs": len(report["runs"])}
+    if command in ("approve-model", "revoke-model"):
+        model = repo.get("model", args.model_id, as_of=now)
+        if not args.reason.strip():
+            raise ValueError("Model review requires a reason.")
+        release = {
+            "status": "revoked", "reason": args.reason,
+            "reviewed_at": now.isoformat(), "automatic_promotion": False,
+        }
+        if command == "approve-model":
+            from football_analytics.services.governance import validate_research
+
+            metrics = repo.get("model_metrics", args.model_id, as_of=now)
+            validate_research(metrics["payload"], model["payload"])
+            release.update(
+                status="approved", metrics_record_id=metrics["record_id"],
+                model_record_id=model["record_id"],
+            )
+        repo.put("model_release", args.model_id, release, available_at=now, recorded_at=now)
+        return {"model_id": args.model_id, **release}
     if command == "predict":
-        bundle = repo.get("model", args.model_id)["payload"]
+        bundle = repo.get("model", args.model_id, as_of=now)["payload"]
         age = (now - datetime.fromisoformat(bundle["training_cutoff"])).total_seconds() / 86400
         if args.max_model_age_days <= 0 or age > args.max_model_age_days:
             raise ValueError("Model history exceeds configured freshness limit.")
         source = repo.get("match", args.match_id)["payload"]
-        if repo.get("model_release", args.model_id)["payload"]["status"] != "approved":
-            raise ValueError("Model must be approved before operational forecasting.")
+        from football_analytics.services.governance import require_approved_model
+
+        require_approved_model(repo, args.model_id, as_of=now)
         forecast = forecast_match(
             bundle, match_from_dict(source["match"]), prediction_time=now, method=args.method
         )
@@ -358,7 +362,7 @@ def execute(args, repo: Repository, now: datetime):
             ],
         }
     if command == "model-card":
-        bundle = repo.get("model", args.model_id)["payload"]
+        bundle = repo.get("model", args.model_id, as_of=now)["payload"]
         return {
             "model_id": args.model_id,
             "training_cutoff": bundle["training_cutoff"],

@@ -43,7 +43,8 @@ All operational commands accept `--database`; default comes from `FOOTBALL_DATAB
 | train | Fit all native model families and optional transforms into a candidate bundle |
 | research / backtest | Temporal model evaluation; `backtest` is an alias |
 | calibrate | Research alias requiring nested holdout options |
-| import-research / approve-model | Associate source-matched evaluation; record human promotion |
+| import-research / approve-model | Validate research consistency and serving-family coverage; bind human review to exact revisions |
+| revoke-model | Append a revocation with required review reason; stop serving |
 | predict | Forecast stored model/fixture, enforcing approval and freshness |
 | update-ratings | Replay and persist current Glicko states |
 | team-report / match-report / model-card | Auditable JSON reports using canonical IDs |
@@ -54,3 +55,27 @@ All operational commands accept `--database`; default comes from `FOOTBALL_DATAB
 `train --historical-availability-assumed` explicitly acknowledges flat-file historical availability. `--uncalibrated` creates raw models only, so select an actual base method at prediction time. `--feature-groups` and `--feature-context` declare research/training inputs. Prediction uses the bundle's frozen context; it does not silently substitute newly ingested features.
 
 The implementation uses canonical `--model-id`, `--match-id` and `--team` IDs rather than ambiguous free-form team-name arguments. Elo is a replayable rating engine and strength feature family; it is not falsely exposed as a standalone calibrated 1X2 model.
+
+
+## Review lifecycle
+
+Import schema-5 research generated for the same source, catalogs, feature groups and
+frozen context. Each evaluated run must reproduce its fold/aggregate metrics and
+calibration from its predictions and match its manifest lineage. Research must cover
+the bundle's base models/features and any calibration/ensemble families.
+
+`approve-model --model-id ID --reason TEXT` binds the decision to the exact model and
+metrics repository record IDs. Importing any new research revision atomically sets
+status back to `candidate`, even when the report contents are identical. Legacy
+approvals without revision bindings require a new review. Replaced evidence and
+revoked approvals return HTTP 409 from prediction and fail CLI prediction.
+`revoke-model --model-id ID --reason TEXT` records a revocation without deleting audit
+history. A later explicit review can approve the model again.
+
+These checks establish artifact consistency and declared coverage. A reviewer must
+still verify source truth, hyperparameter suitability, independent holdout evidence,
+source licensing and fitness for the intended use. No metric threshold auto-promotes.
+
+Dashboard collection views provide Previous, Next and Refresh controls. Navigation
+retains the API snapshot timestamp; Refresh starts a new snapshot. Counts are per-page,
+not total inventory counts.

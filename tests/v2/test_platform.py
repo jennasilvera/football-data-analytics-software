@@ -193,10 +193,16 @@ def test_native_api_auth_approval_forecast_and_read_routes(tmp_path, bundle):
     request = {"model_id": bundle["bundle_id"], "match_id": "future"}
     assert client.post("/predict", json=request).status_code == 409
     later = now + timedelta(milliseconds=1)
+    metrics_id = repo.put(
+        "model_metrics", bundle["bundle_id"], {}, available_at=now, recorded_at=now
+    )
     repo.put(
         "model_release",
         bundle["bundle_id"],
-        {"status": "approved"},
+        {
+            "status": "approved", "metrics_record_id": metrics_id,
+            "model_record_id": repo.get("model", bundle["bundle_id"])["record_id"],
+        },
         available_at=later,
         recorded_at=later,
     )
@@ -224,7 +230,13 @@ def test_native_api_auth_approval_forecast_and_read_routes(tmp_path, bundle):
         "/diagnostics/breakout-watchlist",
     ):
         assert client.get(path).status_code == 200, path
-    assert client.get(f"/models/{bundle['bundle_id']}/metrics").status_code == 404
+    assert client.get(f"/models/{bundle['bundle_id']}/metrics").status_code == 200
+    repo.put(
+        "model_metrics", bundle["bundle_id"], {"new": True},
+        available_at=later + timedelta(milliseconds=1),
+        recorded_at=later + timedelta(milliseconds=1),
+    )
+    assert client.post("/predict", json=request).status_code == 409
 
 
 def test_production_config_requires_credentials():
@@ -297,7 +309,7 @@ def test_composed_forecast_features_are_replayed_from_bundle():
         cutoff=datetime(2020, 5, 15, tzinfo=UTC),
         holdout_days=30,
         min_calibration=5,
-        feature_groups=("form", "schedule", "competition"),
+        feature_groups=("form", "schedule", "competition", "ranking_trends"),
     )
     match = Match("future", date(2020, 7, 1), "ARG", "BRA", "friendly", True)
     forecast = forecast_match(

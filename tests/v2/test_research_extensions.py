@@ -178,3 +178,51 @@ def test_manual_intelligence_rejects_hindsight_and_invalid_ranges():
         ManualContextProvider([{**row, "value": 10}])
     with pytest.raises(ValueError):
         ManualContextProvider([row, row])
+
+
+def test_market_opening_closing_and_prediction_cutoffs_are_distinct(inputs):
+    run = run_research(model_spec=class_frequency_spec(), **inputs)
+    prediction = run.backtest.folds[0].predictions[0]
+    cutoff = datetime.fromisoformat(prediction.prediction_time_iso)
+    record = next(
+        r for r in run.normalization.normalized if r.match.match_id == prediction.match_id
+    )
+    kickoff = datetime.combine(record.match.match_date, datetime.min.time(), UTC) + timedelta(
+        hours=20
+    )
+    records = tuple(
+        replace(r, match=replace(r.match, kickoff_at=kickoff)) if r == record else r
+        for r in run.normalization.normalized
+    )
+    quotes = [
+        (MarketSnapshotObservation(
+            prediction.match_id, "book", price, 3.5, 3.0,
+            SourceMetadata("book", kickoff+timedelta(days=1), available_at=timestamp,
+                           source_record_id=name),
+        ), ScoreBasis.REGULATION_TIME)
+        for name, timestamp, price in (
+            ("opening", cutoff-timedelta(days=2), 2.5),
+            ("prediction", cutoff, 2.2),
+            ("closing", kickoff-timedelta(minutes=1), 2.0),
+            ("postmatch", kickoff+timedelta(minutes=1), 1.1),
+        )
+    ]
+    for timing, expected in (("opening", "opening"), ("prediction_time", "prediction"),
+                             ("closing", "closing")):
+        result = market_benchmark(run.backtest, records, quotes, timing=timing)
+        assert result["rows"][0]["source_record_ids"] == [expected]
+        assert result["rows"][0]["quotes"][0]["source_record_id"] == expected
+        assert result["evaluation_only"] is (timing != "prediction_time")
+
+    from football_analytics.evaluation.extensions import market_timing_comparison
+
+    opening = market_benchmark(run.backtest, records, quotes, timing="opening")
+    closing = market_benchmark(run.backtest, records, quotes, timing="closing")
+    paired = market_timing_comparison(opening, closing)
+    assert paired["paired_bookmaker_matches"] == 1
+    row = paired["rows"][0]
+    assert row["distinct_publications"]
+    assert sum(row["probability_change"].values()) == pytest.approx(0)
+    assert row["probability_change"]["home_win"] > 0
+    with pytest.raises(ValueError):
+        market_timing_comparison(closing, opening)

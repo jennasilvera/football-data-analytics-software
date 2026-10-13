@@ -165,10 +165,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/predict", dependencies=auth)
     def predict(body: PredictRequest):
         now = datetime.now(UTC)
-        model = repo.get("model", body.model_id)["payload"]
-        approval = repo.get("model_release", body.model_id)["payload"]
-        if approval.get("status") != "approved":
-            raise HTTPException(status_code=409, detail="Model is not approved for serving")
+        model = repo.get("model", body.model_id, as_of=now)["payload"]
+        from football_analytics.services.governance import require_approved_model
+
+        try:
+            require_approved_model(repo, body.model_id, as_of=now)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         cutoff = datetime.fromisoformat(model["training_cutoff"])
         if (now - cutoff).total_seconds() / 86400 > settings.max_model_age_days:
             raise HTTPException(
