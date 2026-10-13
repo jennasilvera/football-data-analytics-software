@@ -47,7 +47,9 @@ Research import and approval fail closed when primary run metrics/calibration ca
 be reproduced or manifest/feature/model coverage is inconsistent. Re-import returns
 a model to candidate status atomically; serving checks the reviewed evidence and
 model record IDs at the request timestamp. Audit history survives revocation and backup.
-Tests cover tampered predictions/metrics/lineage, replaced evidence, re-review,
+Batch publication also verifies reviewed model/evidence/approval and forecasted fixture
+revisions inside the write transaction, withholding the entire batch if they changed
+during computation or lock acquisition. Tests cover tampered predictions/metrics/lineage, replaced evidence, re-review,
 revocation, recovery and UI cursor navigation. Auxiliary narrative/diagnostic outputs
 are not independent proof of the primary research sample.
 
