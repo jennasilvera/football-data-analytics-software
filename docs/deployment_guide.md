@@ -40,7 +40,22 @@ Each command accepts `--database PATH`. Use `--help` for source/catalog argument
 football-analytics backup --database outputs/platform.sqlite3 --output backups/platform-YYYYMMDD.sqlite3
 ```
 
-Use a new destination. The command uses SQLite's online backup API (including committed WAL state) and checks database integrity. Copy the resulting standalone snapshot to encrypted off-host storage with appropriate retention. A local snapshot alone is not disaster recovery.
+Use a new destination. The command uses SQLite's online backup API (including
+committed WAL state) to stage a snapshot beside the destination. It converts the
+snapshot to a standalone database, runs SQLite's full integrity check, syncs its
+bytes, then atomically publishes it using an exclusive hard link. Existing files,
+including a destination created by a concurrent backup, are never overwritten.
+The parent directory is synced after publication. The filesystem must support
+hard links and directory syncing; unsupported operations fail explicitly.
+
+Copy, integrity or file-sync failures before publication leave no final backup.
+A directory-sync failure after publication can leave a complete verified file
+despite a nonzero command exit; inspect that destination and use a new filename
+for a retry. Normal failures clean staging files. A process kill may leave a hidden
+staging directory, but never a partially copied final backup. Remove abandoned
+staging directories only after confirming no backup process is using them.
+These checks establish SQLite structural integrity, not the correctness or legal
+usability of the underlying football data. Copy the resulting standalone snapshot to encrypted off-host storage with appropriate retention. A local snapshot alone is not disaster recovery.
 
 To restore: stop writers and API, retain the failed database and its WAL/SHM files for investigation, copy the verified snapshot to a **new database path**, set `FOOTBALL_DATABASE` or `--database` to that path, and restart. Check `/health`, counts, one model and representative forecasts against the backup. Never overwrite an open database or leave WAL files associated with a different database. `make demo-platform` verifies record equality after restoring a snapshot into a separate repository; periodically rehearse the same process with representative production volumes.
 

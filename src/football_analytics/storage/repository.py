@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import tempfile
 from builtins import list as List
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -205,15 +207,36 @@ class Repository:
         return rows[0]
 
     def backup(self, destination: Path) -> None:
+        """Verify a staged SQLite snapshot, then publish without replacing any file."""
         if destination.resolve() == self.path.resolve() or destination.exists():
             raise ValueError("Backup destination must be a new file.")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        with self.connection() as source:
-            target = sqlite3.connect(destination)
+        with tempfile.TemporaryDirectory(prefix=".backup-", dir=destination.parent) as staging:
+            temporary = Path(staging) / "snapshot.sqlite3"
+            with self.connection() as source:
+                target = sqlite3.connect(temporary)
+                try:
+                    source.backup(target)
+                    # Produce one self-contained file, including when the source uses WAL.
+                    mode = target.execute("PRAGMA journal_mode=DELETE").fetchone()
+                    if mode != ("delete",):
+                        raise sqlite3.DatabaseError("Backup could not leave WAL mode.")
+                    if target.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
+                        raise sqlite3.DatabaseError("Backup integrity check failed.")
+                finally:
+                    target.close()
+            with temporary.open("rb") as handle:
+                os.fsync(handle.fileno())
             try:
-                source.backup(target)
+                os.link(temporary, destination)
+            except FileExistsError:
+                raise ValueError("Backup destination must be a new file.") from None
+            # Persist the new directory entry as well as the database bytes.
+            directory = os.open(destination.parent, os.O_RDONLY)
+            try:
+                os.fsync(directory)
             finally:
-                target.close()
+                os.close(directory)
 
     def health(self) -> bool:
         with self.connection() as db:
