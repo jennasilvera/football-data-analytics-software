@@ -23,6 +23,7 @@ class ModelFamily(StrEnum):
     COMPETITION_FREQUENCY = "competition_frequency"
     CONFEDERATION_FREQUENCY = "confederation_frequency"
     POISSON = "poisson"
+    OPPONENT_POISSON = "opponent_adjusted_poisson"
     TEMPERATURE_SCALING = "temperature_scaling"
     CONVEX_ENSEMBLE = "convex_ensemble"
 

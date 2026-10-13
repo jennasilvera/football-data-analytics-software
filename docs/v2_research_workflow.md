@@ -176,3 +176,14 @@ pairs it with global class frequency on identical folds. Unknown memberships and
 unseen pairs use the global training estimate; sparse known pairs shrink toward it.
 The membership file is loaded once for both features and diagnostic lineage. See the
 [model specification](confederation_frequency_baseline.md) for temporal and fallback rules.
+
+
+## Opponent-adjusted goal challenger
+
+`--model opponent-poisson` fits joint attack/defence and home effects using only
+fold-training goals. `--model poisson-comparison --paired-uncertainty` compares it
+with the legacy-parity independent Poisson baseline on identical evaluation matches.
+`make demo-v2-opponent-poisson` runs the synthetic comparison in CI. Each fold exports
+its validated JSON model alongside full score-grid forecasts; `predict-poisson` can
+replay either model type. `--model all` and production bundles retain their existing
+members. See [model equations, controls and limits](opponent_adjusted_poisson.md).

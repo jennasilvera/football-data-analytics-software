@@ -29,6 +29,7 @@ MODULES = (
     "features.market",
     "features.travel",
     "models.base",
+    "models.opponent_poisson",
     "models.competition_frequency",
     "models.confederation_frequency",
     "evaluation.metrics",

@@ -534,6 +534,43 @@ catalog mapping is hashed into the feature version. See the
 | model | `ProbabilisticModel` | `required` |
 | metadata | `ModelTrainingMetadata` | `required` |
 
+### models.opponent_poisson.OpponentPoissonConfig
+
+| Field | Type | Default |
+|---|---|---|
+| penalty | `float` | `5.0` |
+| max_iterations | `int` | `1000` |
+| tolerance | `float` | `1e-09` |
+| max_goals | `int` | `10` |
+| min_expected_goals | `float` | `0.2` |
+| max_expected_goals | `float` | `5.0` |
+
+### models.opponent_poisson.OpponentStrength
+
+| Field | Type | Default |
+|---|---|---|
+| team_id | `str` | `required` |
+| appearances | `int` | `required` |
+| log_attack | `float` | `required` |
+| log_defence_weakness | `float` | `required` |
+
+### models.opponent_poisson.OpponentPoissonModel
+
+| Field | Type | Default |
+|---|---|---|
+| model_id | `str` | `required` |
+| training_dataset_id | `str` | `required` |
+| training_cutoff | `datetime` | `required` |
+| config | `OpponentPoissonConfig` | `required` |
+| log_baseline | `float` | `required` |
+| home_effect | `float` | `required` |
+| teams | `tuple[OpponentStrength, ...]` | `required` |
+| components | `tuple[tuple[str, ...], ...]` | `required` |
+| iterations | `int` | `required` |
+| penalized_objective | `float` | `required` |
+| boundary_parameters | `int` | `required` |
+| schema_version | `int` | `1` |
+
 ### models.competition_frequency.CompetitionFrequencyModel
 
 | Field | Type | Default |

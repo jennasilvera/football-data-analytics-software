@@ -40,6 +40,7 @@ from football_analytics.models.confederation_frequency import (
     train_confederation_frequency,
 )
 from football_analytics.models.frequency import train_class_frequency
+from football_analytics.models.opponent_poisson import OpponentPoissonModel
 from football_analytics.models.poisson import PoissonModel
 
 
@@ -61,7 +62,7 @@ class ResearchResult:
     calibration: CalibrationReport
     manifest: ExperimentManifest
     score_forecasts: tuple[BacktestScoreForecast, ...] = ()
-    score_models: tuple[PoissonModel, ...] = ()
+    score_models: tuple[PoissonModel | OpponentPoissonModel, ...] = ()
 
 
 def run_research(
@@ -121,9 +122,10 @@ def run_research(
         if any(r.team_id not in team_ids for r in membership_history.releases):
             raise ValueError("Membership history contains unknown canonical teams.")
         providers = [ConfederationPairProvider(membership_history)]
+    score_model = model_spec.family in (ModelFamily.POISSON, ModelFamily.OPPONENT_POISSON)
     dataset = build_historical_feature_dataset(
         normalized.normalized,
-        providers=[] if model_spec.family is ModelFamily.POISSON else providers,
+        providers=[] if score_model else providers,
     )
     imputation = ImputationPolicy(
         policy_id="rolling_form_zero_with_status_v1",
@@ -143,8 +145,8 @@ def run_research(
     else:
         folds = build_expanding_window_folds(dataset, split_policy)
     score_forecasts: tuple[BacktestScoreForecast, ...] = ()
-    score_models: tuple[PoissonModel, ...] = ()
-    if model_spec.family is ModelFamily.POISSON:
+    score_models: tuple[PoissonModel | OpponentPoissonModel, ...] = ()
+    if score_model:
         score_result = run_poisson_backtest(
             fold_report=folds,
             records=normalized.normalized,

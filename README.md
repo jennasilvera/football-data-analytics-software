@@ -40,6 +40,7 @@ pytest
 make demo-v2
 make demo-v2-comparison
 make demo-v2-nested
+make demo-v2-opponent-poisson
 make demo-platform
 ```
 
@@ -86,3 +87,10 @@ The supplied data is synthetic. Licensed production feeds, verified historical p
 SQLite and a shared API key target a single-instance research service. Internet-facing or multi-tenant deployments need managed TLS, user identity/authorization, rate limiting, monitoring, incident ownership and tested capacity. Containers are deployment artifacts; no public service is automatically provisioned by this repository. Consult [commercial readiness](docs/commercialization_notes.md) before describing the product as validated for commercial use.
 
 Every upstream dataset needs a documented license and permitted use. Market comparisons are analytical benchmarks; they make no claim of betting profitability.
+
+
+The opt-in [opponent-adjusted Poisson challenger](docs/opponent_adjusted_poisson.md)
+jointly estimates attack, defence and home effects. Run `--model poisson-comparison`
+for chronological comparison against the existing goal baseline; exported JSON
+artifacts support standalone replay. This research option does not change serving
+models or establish a real-data performance advantage.
