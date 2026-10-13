@@ -9,7 +9,7 @@ The native software implementation has executable ingestion, research, model rev
 | Forecast quality | Proper scoring rules, calibration, paired comparison, ablation and market joins | Untouched real-data evaluation; subgroup calibration; interval coverage and bias assessment |
 | Intelligence | Rating/form/schedule/residual reports and next-match forecast lookup | Football-domain review; validated usefulness of trend/watch heuristics |
 | Security | Shared bearer key, body limits, nonroot container, loopback defaults | TLS, user/tenant authorization, secret lifecycle, rate limits, security review |
-| Reliability | Transactions, health checks, request logs, backup and recovery tests | Measured SLOs and capacity, off-host recovery drills, monitoring and incident owners |
+| Reliability | Transactions, atomic forecast batches with durable retries/audits, health checks, request logs, backup and recovery tests | Measured SLOs and capacity, off-host recovery drills, monitoring and incident owners |
 | Legal/commercial | Source legal-use fields and explicit limitations | Counsel/provider permission for collection, model training and redistribution; support terms |
 
 No paid data provider, public host, domain, external alert recipient, production identity provider or billing account is selected automatically. Those choices require actual access, contractual terms and operational ownership.

@@ -22,6 +22,7 @@ page = st.sidebar.radio(
         "Overview",
         "Ratings",
         "Match forecasts",
+        "Forecast batches",
         "Team intelligence",
         "Model diagnostics",
         "Post-match review",
@@ -105,6 +106,19 @@ try:
                 st.json(forecast)
         else:
             st.info("No forecasts have been stored.")
+    elif page == "Forecast batches":
+        batches = paged("/forecast-batches", "batches")["items"]
+        if batches:
+            choices = {r["run_id"]: r for r in batches}
+            selected = st.selectbox("Batch run", list(choices))
+            report = choices[selected]
+            st.write("Status", report["status"], "Snapshot", report["snapshot_at"])
+            st.json(report["counts"])
+            st.dataframe(pd.DataFrame(report["fixtures"]), hide_index=True)
+            with st.expander("Request, review lineage and errors"):
+                st.json(report)
+        else:
+            st.info("No forecast batches have been stored.")
     elif page == "Team intelligence":
         teams = paged("/teams", "teams")["items"]
         if teams:

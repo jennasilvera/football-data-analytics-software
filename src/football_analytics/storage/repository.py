@@ -15,6 +15,10 @@ from football_analytics.data.contracts import ensure_utc
 from football_analytics.models.postprocessing import content_id
 
 
+class PublicationDeadlineError(ValueError):
+    """A time-sensitive transaction missed its final publication deadline."""
+
+
 class Repository:
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -69,22 +73,7 @@ class Repository:
         *,
         recorded_at: datetime | None = None,
     ) -> list[str]:
-        recorded = ensure_utc(recorded_at or datetime.now(UTC)).isoformat()
-        prepared = []
-        for kind, entity_id, payload, available_at in items:
-            available = ensure_utc(available_at).isoformat()
-            if not kind.strip() or not entity_id.strip() or available > recorded:
-                raise ValueError("Invalid identity or availability in repository batch.")
-            body = {
-                "kind": kind,
-                "entity_id": entity_id,
-                "available_at": available,
-                "recorded_at": recorded,
-                "payload": payload,
-            }
-            identity = content_id("record_", body)
-            serialized = json.dumps(payload, sort_keys=True, allow_nan=False)
-            prepared.append((kind, entity_id, identity, available, recorded, serialized))
+        prepared = _prepare_records(items, recorded_at or datetime.now(UTC))
         with self.connection() as db:
             for row in prepared:
                 if not db.execute("SELECT 1 FROM records WHERE record_id=?", (row[2],)).fetchone():
@@ -94,6 +83,54 @@ class Repository:
                         row,
                     )
         return [row[2] for row in prepared]
+
+    def publish_once(
+        self, kind: str, entity_id: str, payload: dict[str, Any],
+        related: list[tuple[str, str, dict[str, Any], datetime]],
+        *, available_at: datetime, recorded_at: datetime, deadline: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Atomically publish an immutable request result and its related records.
+
+        Writers using this operation serialize the existence check and insertion.
+        A racing retry receives the winning payload; a different request is rejected.
+        """
+        deadline = ensure_utc(deadline) if deadline is not None else None
+        if not payload.get("request_id"):
+            raise ValueError("One-time publication requires a request identity.")
+        if any(k == kind and identity == entity_id for k, identity, _, _ in related):
+            raise ValueError("Related records cannot replace the publication guard.")
+        prepared = _prepare_records(
+            [*related, (kind, entity_id, payload, available_at)], recorded_at
+        )
+        with self.connection() as db:
+            db.execute("BEGIN IMMEDIATE")
+            existing = db.execute(
+                "SELECT record_id, available_at, recorded_at, payload FROM records "
+                "WHERE kind=? AND entity_id=? ORDER BY sequence LIMIT 1", (kind, entity_id),
+            ).fetchone()
+            if existing:
+                identity, available, recorded, raw = existing
+                result: dict[str, Any] = json.loads(raw)
+                body = {
+                    "kind": kind, "entity_id": entity_id, "available_at": available,
+                    "recorded_at": recorded, "payload": result,
+                }
+                if identity != content_id("record_", body):
+                    raise ValueError("Repository content integrity failure.")
+                if result.get("request_id") != payload["request_id"]:
+                    raise ValueError("Run ID already belongs to a different request.")
+                return result
+            if deadline is not None and datetime.now(UTC) >= deadline:
+                raise PublicationDeadlineError("Pre-match publication deadline passed.")
+            for row in prepared:
+                if not db.execute("SELECT 1 FROM records WHERE record_id=?", (row[2],)).fetchone():
+                    db.execute(
+                        "INSERT INTO records(kind,entity_id,record_id,available_at,recorded_at,"
+                        "payload) VALUES(?,?,?,?,?,?)", row,
+                    )
+            if deadline is not None and datetime.now(UTC) >= deadline:
+                raise PublicationDeadlineError("Pre-match publication deadline passed.")
+        return payload
 
     def list(
         self,
@@ -165,3 +202,25 @@ class Repository:
     def health(self) -> bool:
         with self.connection() as db:
             return bool(db.execute("PRAGMA quick_check").fetchone() == ("ok",))
+
+
+def _prepare_records(
+    items: list[tuple[str, str, dict[str, Any], datetime]], recorded_at: datetime,
+) -> list[tuple[str, str, str, str, str, str]]:
+    recorded = ensure_utc(recorded_at).isoformat()
+    prepared = []
+    for kind, entity_id, payload, available_at in items:
+        available = ensure_utc(available_at).isoformat()
+        if not kind.strip() or not entity_id.strip() or available > recorded:
+            raise ValueError("Invalid identity or availability in repository batch.")
+        body = {
+            "kind": kind,
+            "entity_id": entity_id,
+            "available_at": available,
+            "recorded_at": recorded,
+            "payload": payload,
+        }
+        identity = content_id("record_", body)
+        serialized = json.dumps(payload, sort_keys=True, allow_nan=False)
+        prepared.append((kind, entity_id, identity, available, recorded, serialized))
+    return prepared

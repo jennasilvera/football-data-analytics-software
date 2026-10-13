@@ -29,7 +29,7 @@ Compose binds both services to loopback, runs UID 10001 with dropped capabilitie
 3. Run predeclared `research`/`backtest` folds (including recent held-out seasons and competitions). Review coverage, calibration, comparisons, ablation and market evidence.
 4. Run `train` with a UTC cutoff and explicit flat-file availability acknowledgment. Save the printed model ID. The bundle freezes history and optional feature context.
 5. `import-research --model-id ID --input REPORT` links source-matched evidence. Check families/features/folds manually, then `approve-model --model-id ID --reason 'review evidence...'`.
-6. Forecast a stored future fixture using `predict --model-id ID --match-id ID`. The default ensemble requires calibrated training. New imports do not update old bundles automatically.
+6. Forecast a stored future fixture using `predict --model-id ID --match-id ID`, or run the [atomic daily batch](daily_forecast_runbook.md) with `predict-batch`. The default ensemble requires calibrated training. New imports do not update old bundles automatically.
 7. After results arrive, replay ratings and inspect reports. Evaluate observed coverage and losses before approving replacement models.
 
 Each command accepts `--database PATH`. Use `--help` for source/catalog arguments. Jobs should run in a scheduler under the operator's ownership, with failures routed to an agreed alert channel. Do not overlap arbitrary refresh jobs or auto-promote candidates solely on one metric.

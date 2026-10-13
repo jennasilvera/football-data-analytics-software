@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -38,6 +38,8 @@ COMMANDS = {
     "validate-data",
     "train",
     "predict",
+    "predict-batch",
+    "batch-report",
     "update-ratings",
     "team-report",
     "match-report",
@@ -86,11 +88,19 @@ def parser() -> argparse.ArgumentParser:
             c.add_argument("--feature-context", type=Path)
         if name in ("ingest-rankings", "ingest-odds", "import-research"):
             c.add_argument("--input", type=Path, required=True)
-        if name in ("predict", "approve-model", "revoke-model", "model-card", "import-research"):
+        if name in (
+            "predict", "predict-batch", "approve-model", "revoke-model", "model-card",
+            "import-research",
+        ):
             c.add_argument("--model-id", required=True)
         if name in ("predict", "match-report", "build-features"):
             c.add_argument("--match-id", required=True)
-        if name == "predict":
+        if name in ("predict-batch", "batch-report"):
+            c.add_argument("--run-id", required=True)
+        if name == "predict-batch":
+            c.add_argument("--from-date", type=date.fromisoformat, required=True)
+            c.add_argument("--through-date", type=date.fromisoformat, required=True)
+        if name in ("predict", "predict-batch"):
             c.add_argument("--method", default="ensemble")
             c.add_argument(
                 "--max-model-age-days",
@@ -125,7 +135,9 @@ def run(argv: list[str]) -> None:
             if getattr(args, "output", None) and args.command != "backup":
                 publish_immutable(args.output, encoded)
             print(encoded.decode())
-    except (ValueError, OSError, KeyError, sqlite3.IntegrityError) as exc:
+            if args.command == "predict-batch" and result.get("status") == "failed":
+                p.exit(1, "Batch failed; audit retained and no forecasts published.\n")
+    except (ValueError, OSError, KeyError, sqlite3.Error) as exc:
         p.exit(2, f"Operation failed: {exc}\n")
 
 
@@ -328,6 +340,16 @@ def execute(args, repo: Repository, now: datetime):
             )
         repo.put("model_release", args.model_id, release, available_at=now, recorded_at=now)
         return {"model_id": args.model_id, **release}
+    if command == "batch-report":
+        return repo.get("forecast_batch", args.run_id)["payload"]
+    if command == "predict-batch":
+        from football_analytics.services.batches import forecast_batch
+
+        return forecast_batch(
+            repo, run_id=args.run_id, model_id=args.model_id,
+            from_date=args.from_date, through_date=args.through_date, now=now,
+            method=args.method, max_model_age_days=args.max_model_age_days,
+        )
     if command == "predict":
         bundle = repo.get("model", args.model_id, as_of=now)["payload"]
         age = (now - datetime.fromisoformat(bundle["training_cutoff"])).total_seconds() / 86400

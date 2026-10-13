@@ -162,6 +162,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ):
         return listing("forecast", limit, after, as_of)
 
+    @app.get("/forecast-batches", dependencies=auth)
+    def forecast_batches(
+        limit: int = Query(100, ge=1, le=1000),
+        after: str | None = Query(None, max_length=200),
+        as_of: datetime | None = None,
+    ):
+        return listing("forecast_batch", limit, after, as_of)
+
+    @app.get("/forecast-batches/{run_id}", dependencies=auth)
+    def forecast_batch_report(run_id: str):
+        return repo.get("forecast_batch", run_id)["payload"]
+
     @app.post("/predict", dependencies=auth)
     def predict(body: PredictRequest):
         now = datetime.now(UTC)
