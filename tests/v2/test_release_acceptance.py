@@ -105,10 +105,18 @@ def test_inconsistent_research_is_rejected(evidence, tamper):
         validate_research(report, bundle)
 
 
-def test_review_binding_reimport_revocation_and_recovery(evidence, tmp_path):
+def test_review_binding_reimport_revocation_and_recovery(evidence, tmp_path, monkeypatch):
     report, bundle = evidence
     repo = Repository(tmp_path / "db")
     now = datetime(2020, 7, 1, tzinfo=UTC)
+    from football_analytics.storage import repository
+
+    class ReviewClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now
+
+    monkeypatch.setattr(repository, "datetime", ReviewClock)
     model_id = bundle["bundle_id"]
     repo.put("model", model_id, bundle, available_at=now, recorded_at=now)
     path = tmp_path / "research.json"
@@ -270,3 +278,90 @@ def test_first_research_import_rejects_concurrent_first_evidence(evidence, tmp_p
     assert not repo.scan("model_release")
     with repo.connection() as db:
         assert db.execute("SELECT COUNT(*) FROM records").fetchone() == (2,)
+
+
+def test_delayed_revocation_sorts_after_approval_and_preserves_as_of_history(
+    evidence, tmp_path, monkeypatch
+):
+    from football_analytics.storage import repository
+
+    report, bundle = evidence
+    repo = Repository(tmp_path / "db")
+    start = datetime(2020, 7, 1, tzinfo=UTC)
+    clock = start + timedelta(seconds=3)
+    model_id = bundle["bundle_id"]
+    repo.put("model", model_id, bundle, available_at=start, recorded_at=start)
+    repo.put("model_metrics", model_id, report, available_at=start, recorded_at=start)
+
+    class WriteClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock
+
+    monkeypatch.setattr(repository, "datetime", WriteClock)
+    approve = parser().parse_args([
+        "approve-model", "--model-id", model_id, "--reason", "Reviewed",
+    ])
+    execute(approve, repo, start + timedelta(seconds=2))
+    approved_at = clock
+    assert require_approved_model(repo, model_id, as_of=approved_at)["status"] == "approved"
+    clock += timedelta(seconds=1)
+    revoke = parser().parse_args([
+        "revoke-model", "--model-id", model_id, "--reason", "Delayed revocation",
+    ])
+    # This revocation request started before the approval but publishes afterward.
+    execute(revoke, repo, start + timedelta(seconds=1))
+    latest = repo.get("model_release", model_id)
+    assert latest["payload"]["status"] == "revoked"
+    assert latest["recorded_at"] == clock.isoformat()
+    assert require_approved_model(repo, model_id, as_of=approved_at)["status"] == "approved"
+    with pytest.raises(ValueError, match="revoked"):
+        require_approved_model(repo, model_id, as_of=clock)
+
+
+def test_default_recording_timestamp_is_assigned_after_write_lock(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from contextlib import contextmanager
+    from threading import Event
+
+    from football_analytics.storage import repository
+
+    repo = Repository(tmp_path / "db")
+    before = datetime(2020, 7, 1, tzinfo=UTC)
+    clock = before
+    opened = Event()
+    original = repo.connection
+
+    class WriteClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock
+
+    @contextmanager
+    def observed_connection():
+        with original() as db:
+            opened.set()
+            yield db
+
+    monkeypatch.setattr(repository, "datetime", WriteClock)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with original() as writer:
+            writer.execute("BEGIN IMMEDIATE")
+            monkeypatch.setattr(repo, "connection", observed_connection)
+            pending = pool.submit(repo.put, "model_release", "m", {}, available_at=before)
+            assert opened.wait(timeout=5)
+            clock = before + timedelta(seconds=10)
+        pending.result(timeout=5)
+    assert repo.get("model_release", "m")["recorded_at"] == clock.isoformat()
+    assert not repo.list("model_release", as_of=before)
+
+
+def test_cli_database_initialization_error_uses_standard_exit(tmp_path, capsys):
+    from football_analytics.cli import main
+
+    # A directory cannot be opened as a SQLite database.
+    with pytest.raises(SystemExit) as exc:
+        main(["backup", "--database", str(tmp_path), "--output", str(tmp_path / "backup")])
+    assert exc.value.code == 2
+    assert "Operation failed:" in capsys.readouterr().err
+    assert not (tmp_path / "backup").exists()

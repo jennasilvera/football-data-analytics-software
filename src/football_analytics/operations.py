@@ -124,9 +124,9 @@ def parser() -> argparse.ArgumentParser:
 def run(argv: list[str]) -> None:
     p = parser()
     args = p.parse_args(argv)
-    repo = Repository(args.database)
-    now = datetime.now(UTC)
     try:
+        repo = Repository(args.database)
+        now = datetime.now(UTC)
         result = execute(args, repo, now)
         if result is not None:
             encoded = (
@@ -327,7 +327,7 @@ def execute(args, repo: Repository, now: datetime):
                     "status": "candidate", "reason": "Research evidence imported; review required",
                 }, now),
             ],
-            recorded_at=now, expected_records=expected,
+            expected_records=expected,
         )
         return {"model_id": args.model_id, "linked_research_runs": len(report["runs"])}
     if command in ("approve-model", "revoke-model"):
@@ -355,7 +355,6 @@ def execute(args, repo: Repository, now: datetime):
             )
         repo.put_many(
             [("model_release", args.model_id, release, now)],
-            recorded_at=now,
             expected_records=expected if command == "approve-model" else None,
         )
         return {"model_id": args.model_id, **release}
