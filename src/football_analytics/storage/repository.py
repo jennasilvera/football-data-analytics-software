@@ -78,7 +78,7 @@ class Repository:
         items: list[tuple[str, str, dict[str, Any], datetime]],
         *,
         recorded_at: datetime | None = None,
-        expected_records: list[tuple[str, str, str]] | None = None,
+        expected_records: list[tuple[str, str, str | None]] | None = None,
         deadline: datetime | None = None,
     ) -> list[str]:
         recorded_at = ensure_utc(recorded_at or datetime.now(UTC))
@@ -104,7 +104,7 @@ class Repository:
         self, kind: str, entity_id: str, payload: dict[str, Any],
         related: list[tuple[str, str, dict[str, Any], datetime]],
         *, available_at: datetime, recorded_at: datetime, deadline: datetime | None = None,
-        expected_records: list[tuple[str, str, str]] | None = None,
+        expected_records: list[tuple[str, str, str | None]] | None = None,
     ) -> dict[str, Any]:
         """Atomically publish an immutable request result and its related records.
 
@@ -267,9 +267,10 @@ def _prepare_records(
 
 def _check_publication_inputs(
     db: sqlite3.Connection,
-    expected_records: list[tuple[str, str, str]] | None,
+    expected_records: list[tuple[str, str, str | None]] | None,
     recorded_at: datetime,
 ) -> None:
+    # An expected ID of None asserts that the record is still absent.
     # Check after acquiring the write lock, on this same transaction. No
     # writer can replace a reviewed input between this check and commit.
     cutoff = max(ensure_utc(recorded_at), datetime.now(UTC)).isoformat()
@@ -280,7 +281,7 @@ def _check_publication_inputs(
             "ORDER BY recorded_at DESC, sequence DESC LIMIT 1",
             (expected_kind, expected_entity, cutoff, cutoff),
         ).fetchone()
-        if current is None or current[0] != expected_id:
+        if (current[0] if current is not None else None) != expected_id:
             raise PublicationConflictError(
                 f"Publication input changed: {expected_kind}/{expected_entity}."
             )

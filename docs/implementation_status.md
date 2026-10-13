@@ -49,7 +49,9 @@ a model to candidate status atomically; serving checks the reviewed evidence and
 model record IDs at the request timestamp. Audit history survives revocation and backup.
 Single-match API/CLI serving and batch publication verify reviewed model/evidence/approval and fixture
 revisions inside the write transaction, withholding publication if they changed
-during computation or lock acquisition. Tests cover tampered predictions/metrics/lineage, replaced evidence, re-review,
+during computation or lock acquisition. Approval and research import likewise reject concurrent changes to model, evidence
+or release state, including creation of previously absent records. Tests cover tampered
+predictions/metrics/lineage, replaced evidence, re-review,
 revocation, recovery and UI cursor navigation. Auxiliary narrative/diagnostic outputs
 are not independent proof of the primary research sample.
 

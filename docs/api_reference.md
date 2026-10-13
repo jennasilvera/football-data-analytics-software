@@ -82,6 +82,14 @@ revoked approvals return HTTP 409 from prediction and fail CLI prediction.
 `revoke-model --model-id ID --reason TEXT` records a revocation without deleting audit
 history. A later explicit review can approve the model again.
 
+Approval and research import also compare the exact model, evidence and release
+revisions inside the write transaction. An intervening revocation, re-review,
+model replacement or evidence import rejects the stale operation without writing
+a decision or partial evidence. Absence is checked too: two first-time imports
+cannot silently replace each other. A conflict exits 2; inspect the latest records
+and rerun the review or import deliberately. Revocation remains an unconditional
+operator action and is not blocked by an evidence change.
+
 These checks establish artifact consistency and declared coverage. A reviewer must
 still verify source truth, hyperparameter suitability, independent holdout evidence,
 source licensing and fitness for the intended use. No metric threshold auto-promotes.
