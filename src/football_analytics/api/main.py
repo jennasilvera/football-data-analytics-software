@@ -125,13 +125,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     auth = [Depends(authorized)]
 
-    def listing(kind: str, limit: int, after: str | None, as_of: datetime | None) -> dict[str, Any]:
+    def snapshot_boundary(as_of: datetime | None, through_sequence: int | None) -> int:
+        if through_sequence is not None:
+            if as_of is None:
+                raise HTTPException(status_code=422, detail="Snapshot sequence requires as_of")
+            if through_sequence > repo.snapshot_sequence():
+                raise HTTPException(status_code=422, detail="Snapshot sequence is not committed")
+            return through_sequence
+        return repo.snapshot_sequence()
+
+    def listing(
+        kind: str, limit: int, after: str | None, as_of: datetime | None,
+        through_sequence: int | None,
+    ) -> dict[str, Any]:
         cutoff = as_of or datetime.now(UTC)
-        rows = repo.list(kind, limit=limit + 1, after_id=after, as_of=cutoff)
+        boundary = snapshot_boundary(as_of, through_sequence)
+        rows = repo.list(
+            kind, limit=limit + 1, after_id=after, as_of=cutoff, through_sequence=boundary
+        )
         return {
             "items": [r["payload"] for r in rows[:limit]],
             "limit": limit,
             "as_of": cutoff.isoformat(),
+            "through_sequence": boundary,
             "next_cursor": rows[limit - 1]["entity_id"] if len(rows) > limit else None,
             "truncated": len(rows) > limit,
         }
@@ -141,8 +157,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         limit: int = Query(100, ge=1, le=1000),
         after: str | None = Query(None, max_length=200),
         as_of: datetime | None = None,
+        through_sequence: int | None = Query(None, ge=0, le=2**63 - 1),
     ):
-        return listing("team", limit, after, as_of)
+        return listing("team", limit, after, as_of, through_sequence)
 
     @app.get("/teams/{team_id}", dependencies=auth)
     def team(team_id: str):
@@ -170,8 +187,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         limit: int = Query(100, ge=1, le=1000),
         after: str | None = Query(None, max_length=200),
         as_of: datetime | None = None,
+        through_sequence: int | None = Query(None, ge=0, le=2**63 - 1),
     ):
-        return listing("match", limit, after, as_of)
+        return listing("match", limit, after, as_of, through_sequence)
 
     @app.get("/matches/{match_id}", dependencies=auth)
     def match(match_id: str):
@@ -182,16 +200,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         limit: int = Query(100, ge=1, le=1000),
         after: str | None = Query(None, max_length=200),
         as_of: datetime | None = None,
+        through_sequence: int | None = Query(None, ge=0, le=2**63 - 1),
     ):
-        return listing("forecast", limit, after, as_of)
+        return listing("forecast", limit, after, as_of, through_sequence)
 
     @app.get("/forecast-batches", dependencies=auth)
     def forecast_batches(
         limit: int = Query(100, ge=1, le=1000),
         after: str | None = Query(None, max_length=200),
         as_of: datetime | None = None,
+        through_sequence: int | None = Query(None, ge=0, le=2**63 - 1),
     ):
-        return listing("forecast_batch", limit, after, as_of)
+        return listing("forecast_batch", limit, after, as_of, through_sequence)
 
     @app.get("/forecast-batches/{run_id}", dependencies=auth)
     def forecast_batch_report(run_id: str):
@@ -221,9 +241,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         limit: int = Query(100, ge=1, le=1000),
         after: str | None = Query(None, max_length=200),
         as_of: datetime | None = None,
+        through_sequence: int | None = Query(None, ge=0, le=2**63 - 1),
     ):
         cutoff = as_of or datetime.now(UTC)
-        rows = repo.list("model", limit=limit + 1, after_id=after, as_of=cutoff)
+        boundary = snapshot_boundary(as_of, through_sequence)
+        rows = repo.list(
+            "model", limit=limit + 1, after_id=after, as_of=cutoff, through_sequence=boundary
+        )
         return {
             "items": [
                 {
@@ -236,6 +260,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "truncated": len(rows) > limit,
             "limit": limit,
             "as_of": cutoff.isoformat(),
+            "through_sequence": boundary,
             "next_cursor": rows[limit - 1]["entity_id"] if len(rows) > limit else None,
         }
 

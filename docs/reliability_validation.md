@@ -55,3 +55,10 @@ failure boundary, add a regression at that boundary, and run the affected end-to
 acceptance path. Passing a dependency consistency check does not establish security
 or behavioral compatibility; the API, dashboard, research and recovery workflows
 remain necessary.
+
+Pagination regressions hold a real SQLite write transaction open during the first
+API page, then commit new historical entities and revisions before the next page.
+All five collection routes must retain the original view; a fresh request sees the
+commit. A 1,001-record scan tests writes between internal pages, and dashboard
+navigation tests preserve both timestamp and committed sequence through navigation
+and reset them on Refresh. Empty snapshots and invalid boundaries are covered.

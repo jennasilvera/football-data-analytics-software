@@ -118,3 +118,17 @@ write lock. Duplicate writes also verify the existing content before treating th
 write as idempotent. A malformed or mismatched stored payload is a storage-integrity
 failure, even if its stored record ID has not changed. The transaction rolls back;
 the source record is preserved for investigation rather than silently repaired.
+
+### Stable collection pagination
+
+Teams, matches, predictions, forecast batches, and models return `as_of` and
+`through_sequence`. Preserve both values together with `next_cursor` as `after`
+when navigating forward or backward. The timestamp controls temporal visibility;
+the sequence excludes commits made after the first page, including historical
+imports and revisions. Supplying a sequence requires an explicit timestamp and a
+committed boundary in the current database. Refresh by omitting both values.
+Timestamp-only clients remain supported but do not preserve a committed snapshot.
+Tokens apply to the same append-only database history; discard them after database
+replacement or restore. This does not provide snapshots across separate collections
+or protection against direct database edits. Repository scans freeze the sequence
+across their internal pages, and the dashboard retains both fields until Refresh.

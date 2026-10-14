@@ -141,6 +141,11 @@ class Repository:
                 raise PublicationDeadlineError("Pre-match publication deadline passed.")
         return payload
 
+    def snapshot_sequence(self) -> int:
+        """Return the committed high-water mark for this append-only database."""
+        with self.connection() as db:
+            return int(db.execute("SELECT COALESCE(MAX(sequence), 0) FROM records").fetchone()[0])
+
     def list(
         self,
         kind: str,
@@ -149,9 +154,14 @@ class Repository:
         entity_id: str | None = None,
         limit: int = 1000,
         after_id: str | None = None,
+        through_sequence: int | None = None,
     ) -> list[dict[str, Any]]:
         if not 1 <= limit <= 10000:
             raise ValueError("Repository limit must lie in [1, 10000].")
+        if through_sequence is not None and (
+            type(through_sequence) is not int or not 0 <= through_sequence < 2**63
+        ):
+            raise ValueError("Invalid snapshot sequence.")
         cutoff = ensure_utc(as_of or datetime.now(UTC)).isoformat()
         with self.connection() as db:
             rows = db.execute(
@@ -160,10 +170,12 @@ class Repository:
                   SELECT *, ROW_NUMBER() OVER (PARTITION BY entity_id
                     ORDER BY recorded_at DESC, sequence DESC) AS rank
                   FROM records WHERE kind=? AND available_at<=? AND recorded_at<=?
+                    AND (? IS NULL OR sequence<=?)
                     AND (? IS NULL OR entity_id=?)
                 ) WHERE rank=1 AND (? IS NULL OR entity_id>?) ORDER BY entity_id LIMIT ?
             """,
-                (kind, cutoff, cutoff, entity_id, entity_id, after_id, after_id, limit),
+                (kind, cutoff, cutoff, through_sequence, through_sequence,
+                 entity_id, entity_id, after_id, after_id, limit),
             ).fetchall()
         result = []
         for entity, identity, available, recorded, raw in rows:
@@ -173,10 +185,13 @@ class Repository:
 
     def scan(self, kind: str, *, as_of: datetime | None = None) -> List[dict[str, Any]]:
         cutoff = ensure_utc(as_of or datetime.now(UTC))
+        boundary = self.snapshot_sequence()
         result: List[dict[str, Any]] = []
         cursor = None
         while True:
-            page = self.list(kind, as_of=cutoff, after_id=cursor, limit=1000)
+            page = self.list(
+                kind, as_of=cutoff, after_id=cursor, limit=1000, through_sequence=boundary
+            )
             result.extend(page)
             if len(page) < 1000:
                 return result
