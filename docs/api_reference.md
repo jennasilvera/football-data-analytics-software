@@ -137,3 +137,11 @@ Publication guards retain the exact approval record that passed validation. They
 never reread a newer release merely to choose the guard identity: a revocation or
 replacement approval committed after validation causes a publication conflict.
 Single forecasts return 409; batches record a failed audit and withhold forecasts.
+
+Stored content corruption is a database failure (`RepositoryIntegrityError`, a
+`sqlite3.DatabaseError`), not a request validation error or approval conflict. This
+classification is preserved through model review, fixture reads, and odds
+enrichment: the API returns a correlated generic 503, and the CLI exits 2. Batch
+processing aborts without writing forecasts or a terminal batch audit, allowing
+the same run ID to be retried after storage is recovered. Ordinary domain failures
+continue to produce durable failed-batch audits.

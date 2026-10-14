@@ -17,7 +17,7 @@ from football_analytics.data.contracts import ensure_utc
 from football_analytics.models.postprocessing import content_id
 
 
-class RepositoryIntegrityError(ValueError):
+class RepositoryIntegrityError(sqlite3.DatabaseError):
     """A stored record cannot be decoded or no longer matches its content identity."""
 
 

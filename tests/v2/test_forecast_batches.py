@@ -20,7 +20,7 @@ from football_analytics.data.serialization import json_safe
 from football_analytics.domain import Match, MatchStatus
 from football_analytics.services.batches import forecast_batch
 from football_analytics.services.forecasting import train_forecast_bundle
-from football_analytics.storage.repository import Repository
+from football_analytics.storage.repository import Repository, RepositoryIntegrityError
 
 SAMPLE = Path(__file__).resolve().parents[2] / "data/sample/v2"
 
@@ -289,7 +289,7 @@ def test_publication_checks_integrity_of_a_racing_existing_guard(tmp_path):
     )
     with repo.connection() as db:
         db.execute("UPDATE records SET payload='{}'")
-    with pytest.raises(ValueError, match="integrity"):
+    with pytest.raises(RepositoryIntegrityError, match="integrity"):
         repo.publish_once(
             "forecast_batch", "r", {"request_id": "request"}, [], available_at=now, recorded_at=now
         )
@@ -574,3 +574,55 @@ def test_publication_guards_the_exact_validated_approval(
         assert forecast_batch(repo, **args) == report
     assert replaced
     assert repo.scan("forecast") == []
+
+
+@pytest.mark.parametrize("kind", ["model", "model_metrics", "model_release", "match", "odds"])
+@pytest.mark.parametrize("interface", ["api", "batch", "cli"])
+def test_corruption_stays_a_storage_failure(setup, kind, interface, caplog, capsys):
+    repo, args, _ = setup
+    if kind == "odds":
+        repo.put("odds", "quote", {}, available_at=args["now"], recorded_at=args["now"])
+    with repo.connection() as db:
+        originals = db.execute(
+            "SELECT record_id, payload FROM records WHERE kind=?", (kind,)
+        ).fetchall()
+        db.execute("UPDATE records SET payload=? WHERE kind=?", ('{"tampered":true}', kind))
+    if interface == "api":
+        app = create_app(Settings(repo.path, allow_unauthenticated=True, max_model_age_days=5000))
+        response = TestClient(app).post(
+            "/predict", json={"model_id": args["model_id"], "match_id": "future"}
+        )
+        assert response.status_code == 503
+        assert response.json() == {"detail": "Storage unavailable; operation not confirmed"}
+        request_id = response.headers["X-Request-ID"]
+        assert any(
+            r.message == "storage_unavailable" and r.request_id == request_id
+            and r.error_type == "RepositoryIntegrityError" for r in caplog.records
+        )
+    elif interface == "batch":
+        with pytest.raises(RepositoryIntegrityError):
+            forecast_batch(repo, **args)
+    else:
+        with pytest.raises(SystemExit) as exc:
+            main([
+                "predict-batch", "--database", str(repo.path), "--run-id", args["run_id"],
+                "--model-id", args["model_id"], "--from-date", str(args["from_date"]),
+                "--through-date", str(args["through_date"]), "--max-model-age-days", "5000",
+            ])
+        assert exc.value.code == 2
+        assert "Repository content integrity failure" in capsys.readouterr().err
+    assert repo.scan("forecast") == []
+    assert repo.scan("forecast_batch") == []
+
+    if interface == "batch":
+        # Simulate recovery of the original bytes, not acceptance of corrupt input.
+        with repo.connection() as db:
+            db.executemany(
+                "UPDATE records SET payload=? WHERE record_id=?",
+                [(payload, identity) for identity, payload in originals],
+            )
+        # The empty odds fixture is intentionally ignored as unknown score basis.
+        result = forecast_batch(repo, **args)
+        assert result["status"] == "completed"
+        assert result["counts"]["forecasted"] == 1
+        assert forecast_batch(repo, **args) == result
