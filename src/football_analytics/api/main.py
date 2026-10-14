@@ -9,6 +9,7 @@ from typing import Annotated, Any
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -60,16 +61,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def observe(request: Request, call_next):
         started, request_id = time.monotonic(), str(uuid4())
         request.state.request_id = request_id
+        response = None
         if request.method == "POST":
             body = bytearray()
             async for chunk in request.stream():
-                body.extend(chunk)
-                if len(body) > 16384:
-                    return JSONResponse(
+                if len(body) + len(chunk) > 16384:
+                    response = JSONResponse(
                         status_code=413, content={"detail": "Request body too large"}
                     )
-            request._body = bytes(body)
-        response = await call_next(request)
+                    break
+                body.extend(chunk)
+            if response is None:
+                request._body = bytes(body)
+        if response is None:
+            response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         logger.info(
             "request_completed",
@@ -82,6 +87,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
         )
         return response
+
+    @app.exception_handler(RequestValidationError)
+    async def request_invalid(request: Request, exc: RequestValidationError):
+        # Raw inputs/context can contain secrets, non-finite numbers, or exceptions.
+        # Keep only actionable, JSON-safe validation metadata.
+        errors = [
+            {key: error[key] for key in ("loc", "msg", "type")}
+            for error in exc.errors()
+        ]
+        return JSONResponse(status_code=422, content={"detail": errors})
 
     @app.exception_handler(KeyError)
     async def not_found(request: Request, exc: KeyError):

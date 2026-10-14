@@ -145,3 +145,11 @@ enrichment: the API returns a correlated generic 503, and the CLI exits 2. Batch
 processing aborts without writing forecasts or a terminal batch audit, allowing
 the same run ID to be retried after storage is recovered. Ordinary domain failures
 continue to produce durable failed-batch audits.
+
+Request validation errors return 422 with `detail` entries containing `loc`, `msg`,
+and `type`; raw `input` and `ctx` are omitted. This keeps invalid non-finite numeric
+inputs JSON-safe and avoids echoing submitted values. POST bodies are limited to
+16,384 bytes, including streamed chunks without Content-Length. Oversized requests
+return 413 with the same X-Request-ID header and completion log as other responses.
+The buffer checks each chunk before appending it and stops reading when over limit.
+Ingress timeouts, network buffering, and connection cleanup remain deployment concerns.
