@@ -42,7 +42,8 @@ football-analytics backup --database outputs/platform.sqlite3 --output backups/p
 
 Use a new destination. The command uses SQLite's online backup API (including
 committed WAL state) to stage a snapshot beside the destination. It converts the
-snapshot to a standalone database, runs SQLite's full integrity check, syncs its
+snapshot to a standalone database, runs SQLite's full integrity check and verifies
+the content hash and object payload of every stored revision, then syncs its
 bytes, then atomically publishes it using an exclusive hard link. Existing files,
 including a destination created by a concurrent backup, are never overwritten.
 The parent directory is synced after publication. The filesystem must support
@@ -54,8 +55,16 @@ despite a nonzero command exit; inspect that destination and use a new filename
 for a retry. Normal failures clean staging files. A process kill may leave a hidden
 staging directory, but never a partially copied final backup. Remove abandoned
 staging directories only after confirming no backup process is using them.
-These checks establish SQLite structural integrity, not the correctness or legal
-usability of the underlying football data. Copy the resulting standalone snapshot to encrypted off-host storage with appropriate retention. A local snapshot alone is not disaster recovery.
+Verification includes superseded and future-visible revisions, traversed one record
+at a time. A content mismatch or malformed payload aborts publication and preserves
+the source for investigation. The work scales with total revision history, so measure
+backup duration on representative data. The quick health endpoint remains a
+structural probe; it does not run this full history scan.
+
+These checks establish structural and stored-content integrity, not the correctness
+or legal usability of the underlying football data. They do not prove authenticity
+against an actor able to rewrite both a record and its hash, or detect deleted
+records without an independently retained inventory. Copy the resulting standalone snapshot to encrypted off-host storage with appropriate retention. A local snapshot alone is not disaster recovery.
 
 To restore: stop writers and API, retain the failed database and its WAL/SHM files for investigation, copy the verified snapshot to a **new database path**, set `FOOTBALL_DATABASE` or `--database` to that path, and restart. Check `/health`, counts, one model and representative forecasts against the backup. Never overwrite an open database or leave WAL files associated with a different database. `make demo-platform` verifies record equality after restoring a snapshot into a separate repository; periodically rehearse the same process with representative production volumes.
 

@@ -17,6 +17,7 @@ behavior depends on another process, a write lock, a retry or a restored databas
 | Backup + filesystem failure/concurrent destination | No partial final file and no overwrite | Copy, integrity, sync, symlink and concurrent-publisher tests |
 | API + unavailable SQLite | Structured failure, request correlation and successful recovery | Real write-lock contention, health/read errors and subsequent write success |
 | SQLite capacity + atomic write | Exhaustion cannot retain a partial batch | SQLITE_FULL induced with a page limit; rollback and recovery after removing the limit |
+| Backup + complete revision history | Structurally valid storage cannot conceal altered historical records | Superseded/future-visible payload tampering, malformed JSON and nonfinite values abort publication |
 | Installed Python packages | Declared dependency requirements are mutually satisfied | python -m pip check after CI installs the pinned lockfile and editable package |
 
 The process tests use SQLite's actual WAL transactions and independent spawned

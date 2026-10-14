@@ -24,6 +24,7 @@ from football_analytics.storage.repository import (
     PublicationConflictError,
     PublicationDeadlineError,
     Repository,
+    RepositoryIntegrityError,
 )
 
 logger = logging.getLogger("football_analytics.api")
@@ -91,7 +92,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse(status_code=422, content={"detail": str(exc)})
 
     @app.exception_handler(sqlite3.Error)
-    async def storage_unavailable(request: Request, exc: sqlite3.Error):
+    @app.exception_handler(RepositoryIntegrityError)
+    async def storage_unavailable(
+        request: Request, exc: sqlite3.Error | RepositoryIntegrityError
+    ):
         logger.error(
             "storage_unavailable",
             extra={

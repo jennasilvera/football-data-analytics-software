@@ -31,7 +31,7 @@ Use the actual IDs printed by ingestion/training. Method can be a bundle's base 
 
 Collections accept `limit` (1–1000), `after` (previous `next_cursor`) and `as_of` (previous response's UTC timestamp). Retain the same `as_of` across pages to obtain a consistent historical view. Missing objects return 404, missing credentials 401, invalid requests/contracts 422, unapproved/stale serving candidates or publication conflicts 409 and oversized bodies 413. Model lists expose metadata rather than full training bundles.
 
-SQLite failures during requests return 503 with a generic storage-unavailable
+SQLite failures and stored-content integrity failures during requests return 503 with a generic storage-unavailable
 message and an X-Request-ID. Server logs correlate that ID with the SQLite error
 code and exception type, without including the database exception text. The
 response does not confirm whether a write committed; inspect stored results before
