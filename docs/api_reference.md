@@ -111,3 +111,10 @@ retains the API snapshot timestamp; Refresh starts a new snapshot. Counts are pe
 not total inventory counts.
 
 Batch operation and exit/retry semantics are covered in the [native daily runbook](daily_forecast_runbook.md).
+
+
+Publication verifies the content behind guarded revision IDs while holding the
+write lock. Duplicate writes also verify the existing content before treating the
+write as idempotent. A malformed or mismatched stored payload is a storage-integrity
+failure, even if its stored record ID has not changed. The transaction rolls back;
+the source record is preserved for investigation rather than silently repaired.

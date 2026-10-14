@@ -95,13 +95,7 @@ class Repository:
             _check_publication_inputs(db, expected_records, recorded_at)
             if deadline is not None and datetime.now(UTC) >= deadline:
                 raise PublicationDeadlineError("Pre-match publication deadline passed.")
-            for row in prepared:
-                if not db.execute("SELECT 1 FROM records WHERE record_id=?", (row[2],)).fetchone():
-                    db.execute(
-                        "INSERT INTO records(kind,entity_id,record_id,available_at,recorded_at,"
-                        "payload) VALUES(?,?,?,?,?,?)",
-                        row,
-                    )
+            _insert_records(db, prepared)
             if deadline is not None and datetime.now(UTC) >= deadline:
                 raise PublicationDeadlineError("Pre-match publication deadline passed.")
         return [row[2] for row in prepared]
@@ -142,12 +136,7 @@ class Repository:
             _check_publication_inputs(db, expected_records, recorded_at)
             if deadline is not None and datetime.now(UTC) >= deadline:
                 raise PublicationDeadlineError("Pre-match publication deadline passed.")
-            for row in prepared:
-                if not db.execute("SELECT 1 FROM records WHERE record_id=?", (row[2],)).fetchone():
-                    db.execute(
-                        "INSERT INTO records(kind,entity_id,record_id,available_at,recorded_at,"
-                        "payload) VALUES(?,?,?,?,?,?)", row,
-                    )
+            _insert_records(db, prepared)
             if deadline is not None and datetime.now(UTC) >= deadline:
                 raise PublicationDeadlineError("Pre-match publication deadline passed.")
         return payload
@@ -276,7 +265,8 @@ def _check_publication_inputs(
     cutoff = max(ensure_utc(recorded_at), datetime.now(UTC)).isoformat()
     for expected_kind, expected_entity, expected_id in expected_records or []:
         current = db.execute(
-            "SELECT record_id FROM records WHERE kind=? AND entity_id=? "
+            "SELECT record_id, available_at, recorded_at, payload FROM records "
+            "WHERE kind=? AND entity_id=? "
             "AND available_at<=? AND recorded_at<=? "
             "ORDER BY recorded_at DESC, sequence DESC LIMIT 1",
             (expected_kind, expected_entity, cutoff, cutoff),
@@ -285,6 +275,8 @@ def _check_publication_inputs(
             raise PublicationConflictError(
                 f"Publication input changed: {expected_kind}/{expected_entity}."
             )
+        if current is not None:
+            _decode_record(expected_kind, expected_entity, *current)
 
 
 
@@ -304,3 +296,22 @@ def _decode_record(
     except (ValueError, TypeError) as exc:
         raise RepositoryIntegrityError("Repository content integrity failure.") from exc
     return body
+
+
+
+def _insert_records(
+    db: sqlite3.Connection, prepared: list[tuple[str, str, str, str, str, str]],
+) -> None:
+    for row in prepared:
+        existing = db.execute(
+            "SELECT kind, entity_id, record_id, available_at, recorded_at, payload "
+            "FROM records WHERE record_id=?", (row[2],),
+        ).fetchone()
+        if existing is not None:
+            # Idempotency is valid only if the stored content still matches its ID.
+            _decode_record(*existing)
+        else:
+            db.execute(
+                "INSERT INTO records(kind,entity_id,record_id,available_at,recorded_at,"
+                "payload) VALUES(?,?,?,?,?,?)", row,
+            )
