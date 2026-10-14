@@ -29,7 +29,7 @@ POST body:
 
 Use the actual IDs printed by ingestion/training. Method can be a bundle's base spec ID, `calibrated_<spec_id>` or `ensemble` when present. The server supplies prediction time and enforces pre-match eligibility, approval, model age, known identities and artifact integrity. Maximum body size is 16 KiB. Success includes `X-Request-ID`; structured request logs omit credentials and bodies.
 
-Collections accept `limit` (1–1000), `after` (previous `next_cursor`) and `as_of` (previous response's UTC timestamp). Retain the same `as_of` across pages to obtain a consistent historical view. Missing objects return 404, missing credentials 401, invalid requests/contracts 422, unapproved/stale serving candidates or publication conflicts 409 and oversized bodies 413. Model lists expose metadata rather than full training bundles.
+Collections accept `limit` (1–1000), `after` (previous `next_cursor`), `as_of` (previous response's UTC timestamp), and `through_sequence`. Retain both snapshot fields across pages for a consistent committed historical view. Missing objects return 404, missing credentials 401, invalid requests/contracts 422, unapproved/stale serving candidates or publication conflicts 409 and oversized bodies 413. Model lists expose metadata rather than full training bundles.
 
 SQLite failures and stored-content integrity failures during requests return 503 with a generic storage-unavailable
 message and an X-Request-ID. Server logs correlate that ID with the SQLite error
@@ -107,7 +107,7 @@ still verify source truth, hyperparameter suitability, independent holdout evide
 source licensing and fitness for the intended use. No metric threshold auto-promotes.
 
 Dashboard collection views provide Previous, Next and Refresh controls. Navigation
-retains the API snapshot timestamp; Refresh starts a new snapshot. Counts are per-page,
+retains the API snapshot timestamp and committed sequence; Refresh starts a new snapshot. Counts are per-page,
 not total inventory counts.
 
 Batch operation and exit/retry semantics are covered in the [native daily runbook](daily_forecast_runbook.md).
@@ -118,3 +118,17 @@ write lock. Duplicate writes also verify the existing content before treating th
 write as idempotent. A malformed or mismatched stored payload is a storage-integrity
 failure, even if its stored record ID has not changed. The transaction rolls back;
 the source record is preserved for investigation rather than silently repaired.
+
+### Stable collection pagination
+
+Teams, matches, predictions, forecast batches, and models return `as_of` and
+`through_sequence`. Preserve both values together with `next_cursor` as `after`
+when navigating forward or backward. The timestamp controls temporal visibility;
+the sequence excludes commits made after the first page, including historical
+imports and revisions. Supplying a sequence requires an explicit timestamp and a
+committed boundary in the current database. Refresh by omitting both values.
+Timestamp-only clients remain supported but do not preserve a committed snapshot.
+Tokens apply to the same append-only database history; discard them after database
+replacement or restore. This does not provide snapshots across separate collections
+or protection against direct database edits. Repository scans freeze the sequence
+across their internal pages, and the dashboard retains both fields until Refresh.

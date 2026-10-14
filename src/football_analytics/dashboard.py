@@ -37,7 +37,7 @@ def fetch(path: str):
 
 
 def paged(path: str, label: str):
-    # Cursor history and fixed as_of keep Previous/Next on the same snapshot.
+    # Timestamp and committed sequence keep Previous/Next on the same snapshot.
     state_key = "collection:" + base + ":" + path
     if state_key not in st.session_state:
         st.session_state[state_key] = {"cursors": [None], "as_of": None}
@@ -47,8 +47,11 @@ def paged(path: str, label: str):
         params["after"] = state["cursors"][-1]
     if state["as_of"] is not None:
         params["as_of"] = state["as_of"]
+    if state.get("through_sequence") is not None:
+        params["through_sequence"] = state["through_sequence"]
     response = fetch(path + ("?" + urlencode(params) if params else ""))
     state["as_of"] = response.get("as_of")
+    state["through_sequence"] = response.get("through_sequence")
     previous, following, refresh = st.columns(3)
     if previous.button("Previous " + label, disabled=len(state["cursors"]) == 1):
         state["cursors"].pop()

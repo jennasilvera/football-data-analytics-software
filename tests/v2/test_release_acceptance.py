@@ -174,7 +174,7 @@ def test_dashboard_cursor_navigation_preserves_snapshot(monkeypatch):
         second = "after" in params
         payload = {
             "items": [{"team_id": "Z" if second else "A"}],
-            "as_of": "2020-01-01T00:00:00+00:00",
+            "as_of": "2020-01-01T00:00:00+00:00", "through_sequence": 42,
             "next_cursor": None if second else "A", "truncated": not second,
         }
         if url.path.startswith("/reports/team/"):
@@ -192,7 +192,8 @@ def test_dashboard_cursor_navigation_preserves_snapshot(monkeypatch):
     next(b for b in app.button if b.label == "Next teams").click().run(timeout=15)
     assert not app.exception
     assert app.selectbox[0].options == ["Z"]
-    assert ("/teams", {"after": ["A"], "as_of": ["2020-01-01T00:00:00+00:00"]}) in calls
+    assert ("/teams", {"after": ["A"], "as_of": ["2020-01-01T00:00:00+00:00"],
+                       "through_sequence": ["42"]}) in calls
     next(b for b in app.button if b.label == "Previous teams").click().run(timeout=15)
     assert app.selectbox[0].options == ["A"]
     next(b for b in app.button if b.label == "Refresh teams").click().run(timeout=15)
