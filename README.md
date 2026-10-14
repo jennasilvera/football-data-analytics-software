@@ -25,6 +25,8 @@ Targets are **regulation-time goals and 1X2 outcomes**. Unknown score bases, ext
 
 Forecasts contain 1X2 probabilities, Poisson expected goals and score grid, entropy, feature drivers, model/data identities, freshness and market disagreement when available. Match-probability intervals remain explicitly **unvalidated/null**. Glicko intervals describe the rating scale. Logistic drivers are model contributions, not causal explanations or ensemble attribution.
 
+See [reliability validation](docs/reliability_validation.md) for process-failure, concurrency, dependency and recovery requirements.
+
 ## Install and verify
 
 Python 3.12 is the tested runtime.
