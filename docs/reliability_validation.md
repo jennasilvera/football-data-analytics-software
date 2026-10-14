@@ -62,3 +62,9 @@ All five collection routes must retain the original view; a fresh request sees t
 commit. A 1,001-record scan tests writes between internal pages, and dashboard
 navigation tests preserve both timestamp and committed sequence through navigation
 and reset them on Refresh. Empty snapshots and invalid boundaries are covered.
+
+Approval-read races are exercised for both single and batch forecasts: a separate
+SQLite connection replaces the release after it is read for validation but before
+publication. Both revocation and replacement approval must conflict against the
+exact validated record. Single forecasts write nothing; batches retain a failed
+audit with forecasts withheld and stable retry results.

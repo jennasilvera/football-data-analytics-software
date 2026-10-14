@@ -132,3 +132,8 @@ Tokens apply to the same append-only database history; discard them after databa
 replacement or restore. This does not provide snapshots across separate collections
 or protection against direct database edits. Repository scans freeze the sequence
 across their internal pages, and the dashboard retains both fields until Refresh.
+
+Publication guards retain the exact approval record that passed validation. They
+never reread a newer release merely to choose the guard identity: a revocation or
+replacement approval committed after validation causes a publication conflict.
+Single forecasts return 409; batches record a failed audit and withhold forecasts.

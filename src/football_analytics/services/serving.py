@@ -6,7 +6,7 @@ from typing import Any
 from football_analytics.data.contracts import ensure_utc
 from football_analytics.data.serialization import match_from_dict
 from football_analytics.services.forecasting import forecast_match
-from football_analytics.services.governance import require_approved_model
+from football_analytics.services.governance import require_approved_model_record
 from football_analytics.services.market import attach_market
 from football_analytics.storage.repository import Repository
 
@@ -23,10 +23,10 @@ def predict_and_publish(
     model_record = repo.get("model", model_id, as_of=now)
     model = model_record["payload"]
     try:
-        release = require_approved_model(repo, model_id, as_of=now)
+        approval = require_approved_model_record(repo, model_id, as_of=now)
+        release = approval["payload"]
     except ValueError as exc:
         raise ServingConflictError(str(exc)) from exc
-    approval = repo.get("model_release", model_id, as_of=now)
     age = (now - datetime.fromisoformat(model["training_cutoff"])).total_seconds() / 86400
     if type(max_model_age_days) is not int or max_model_age_days <= 0 or not (
         0 <= age <= max_model_age_days

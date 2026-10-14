@@ -528,3 +528,49 @@ def test_guarded_put_many_rolls_back_if_deadline_closes_before_commit(tmp_path, 
             recorded_at=now, deadline=now + timedelta(seconds=1),
         )
     assert not repo.scan("forecast")
+
+
+@pytest.mark.parametrize("mode", ["single", "batch"])
+@pytest.mark.parametrize("replacement_status", ["revoked", "approved"])
+def test_publication_guards_the_exact_validated_approval(
+    setup, monkeypatch, mode, replacement_status
+):
+    from football_analytics.services.serving import predict_and_publish
+    from football_analytics.storage.repository import PublicationConflictError
+
+    repo, args, _ = setup
+    original_get = repo.get
+    replaced = False
+
+    def racing_get(kind, entity_id, **kwargs):
+        nonlocal replaced
+        record = original_get(kind, entity_id, **kwargs)
+        if kind == "model_release" and not replaced:
+            replaced = True
+            # A second connection commits after the validated read but before
+            # the caller can fetch the approval again for its publication guard.
+            writer = Repository(repo.path)
+            writer.put(
+                kind, entity_id,
+                {**record["payload"], "status": replacement_status, "reason": "new decision"},
+                available_at=args["now"], recorded_at=args["now"],
+            )
+        return record
+
+    monkeypatch.setattr(repo, "get", racing_get)
+    if mode == "single":
+        with pytest.raises(PublicationConflictError, match="model_release"):
+            predict_and_publish(
+                repo, model_id=args["model_id"], match_id="future", now=args["now"],
+                max_model_age_days=5000,
+            )
+        assert repo.scan("forecast_batch") == []
+    else:
+        report = forecast_batch(repo, **args)
+        assert report["status"] == "failed"
+        assert report["counts"]["withheld"] == 1
+        assert report["errors"][-1]["stage"] == "publication"
+        assert "model_release" in report["errors"][-1]["reason"]
+        assert forecast_batch(repo, **args) == report
+    assert replaced
+    assert repo.scan("forecast") == []

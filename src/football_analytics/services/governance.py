@@ -141,9 +141,16 @@ def _validate_research(report: dict, bundle: dict) -> None:
 
 
 def require_approved_model(repo: Repository, model_id: str, *, as_of: datetime) -> dict:
-    """Fail closed for absent, revoked, legacy or superseded approvals."""
+    """Return the approved release payload for read-only callers."""
+    release: dict = require_approved_model_record(repo, model_id, as_of=as_of)["payload"]
+    return release
+
+
+def require_approved_model_record(repo: Repository, model_id: str, *, as_of: datetime) -> dict:
+    """Return the exact validated approval record for transactional publication guards."""
     try:
-        release: dict = repo.get("model_release", model_id, as_of=as_of)["payload"]
+        approval = repo.get("model_release", model_id, as_of=as_of)
+        release: dict = approval["payload"]
         metrics = repo.get("model_metrics", model_id, as_of=as_of)
         model = repo.get("model", model_id, as_of=as_of)
     except KeyError as exc:
@@ -155,4 +162,4 @@ def require_approved_model(repo: Repository, model_id: str, *, as_of: datetime) 
         raise ValueError(
             "Model approval is absent, revoked or superseded; review current evidence."
         )
-    return release
+    return approval
