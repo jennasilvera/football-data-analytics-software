@@ -24,7 +24,7 @@ from football_analytics.models.portable import PortableClassifier, export_classi
 from football_analytics.models.sklearn_models import SklearnOutcomeModel
 from football_analytics.ratings.glicko import GlickoState, inflate, update_period
 from football_analytics.services.forecasting import forecast_match, train_forecast_bundle
-from football_analytics.storage.repository import Repository
+from football_analytics.storage.repository import Repository, RepositoryIntegrityError
 
 SAMPLE = Path(__file__).resolve().parents[2] / "data/sample/v2"
 
@@ -130,7 +130,7 @@ def test_repository_detects_corrupt_payload(tmp_path):
     repo.put("team", "A", {"name": "A"}, available_at=now, recorded_at=now)
     with repo.connection() as db:
         db.execute("UPDATE records SET payload='{}'")
-    with pytest.raises(ValueError, match="integrity"):
+    with pytest.raises(RepositoryIntegrityError, match="integrity"):
         repo.get("team", "A")
 
 

@@ -68,3 +68,9 @@ SQLite connection replaces the release after it is read for validation but befor
 publication. Both revocation and replacement approval must conflict against the
 exact validated record. Single forecasts write nothing; batches retain a failed
 audit with forecasts withheld and stable retry results.
+
+Corruption classification is tested across model, metrics, approval, fixture, and
+odds reads through the API, batch service, and CLI. Hash-mismatched records must
+remain storage failures, return a correlated 503 or CLI exit 2, and leave no
+forecast or terminal batch audit. These tests distinguish infrastructure failure
+from a validly read but rejected domain input.
