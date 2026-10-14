@@ -11,7 +11,7 @@ from football_analytics.data.serialization import match_from_dict
 from football_analytics.domain import MatchStatus
 from football_analytics.models.postprocessing import content_id
 from football_analytics.services.forecasting import forecast_match
-from football_analytics.services.governance import require_approved_model
+from football_analytics.services.governance import require_approved_model_record
 from football_analytics.services.market import attach_market
 from football_analytics.storage.repository import (
     PublicationConflictError,
@@ -72,12 +72,13 @@ def forecast_batch(
     matches = []
     stage = "model_review"
     try:
-        release = require_approved_model(repo, model_id, as_of=now)
+        approval = require_approved_model_record(repo, model_id, as_of=now)
+        release = approval["payload"]
         model = repo.get("model", model_id, as_of=now)["payload"]
         report["lineage"] = {
             "model_record_id": release["model_record_id"],
             "metrics_record_id": release["metrics_record_id"],
-            "approval_record_id": repo.get("model_release", model_id, as_of=now)["record_id"],
+            "approval_record_id": approval["record_id"],
         }
         age = (now - datetime.fromisoformat(model["training_cutoff"])).total_seconds() / 86400
         if age < 0 or age > max_model_age_days:
