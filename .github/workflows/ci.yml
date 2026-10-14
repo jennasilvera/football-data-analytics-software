@@ -13,6 +13,7 @@ on:
 jobs:
   test-and-lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
@@ -29,6 +30,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.lock
           pip install -e .
+
+      - name: Verify installed dependency compatibility
+        run: python -m pip check
 
       - name: Run Ruff linting
         run: ruff check .
@@ -91,6 +95,7 @@ jobs:
 
   container-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Build and start native services
