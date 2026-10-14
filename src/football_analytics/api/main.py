@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+import sqlite3
 import time
 from datetime import UTC, datetime
 from typing import Annotated, Any
@@ -57,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.middleware("http")
     async def observe(request: Request, call_next):
         started, request_id = time.monotonic(), str(uuid4())
+        request.state.request_id = request_id
         if request.method == "POST":
             body = bytearray()
             async for chunk in request.stream():
@@ -87,6 +89,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(ValueError)
     async def invalid(request: Request, exc: ValueError):
         return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    @app.exception_handler(sqlite3.Error)
+    async def storage_unavailable(request: Request, exc: sqlite3.Error):
+        logger.error(
+            "storage_unavailable",
+            extra={
+                "request_id": request.state.request_id,
+                "error_type": type(exc).__name__,
+                "sqlite_errorcode": getattr(exc, "sqlite_errorcode", None),
+            },
+        )
+        return JSONResponse(
+            status_code=503, content={"detail": "Storage unavailable; operation not confirmed"}
+        )
 
     @app.get("/health")
     def health():

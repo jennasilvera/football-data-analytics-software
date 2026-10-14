@@ -15,6 +15,8 @@ behavior depends on another process, a write lock, a retry or a restored databas
 | Active writer + online backup | Snapshot excludes the unfinished transaction | Backup taken while a worker is paused after inserting forecasts but before its audit |
 | Review + lock acquisition | Publication order survives reversed request-start order | Delayed revocation and real lock-wait timestamp tests |
 | Backup + filesystem failure/concurrent destination | No partial final file and no overwrite | Copy, integrity, sync, symlink and concurrent-publisher tests |
+| API + unavailable SQLite | Structured failure, request correlation and successful recovery | Real write-lock contention, health/read errors and subsequent write success |
+| SQLite capacity + atomic write | Exhaustion cannot retain a partial batch | SQLITE_FULL induced with a page limit; rollback and recovery after removing the limit |
 | Installed Python packages | Declared dependency requirements are mutually satisfied | python -m pip check after CI installs the pinned lockfile and editable package |
 
 The process tests use SQLite's actual WAL transactions and independent spawned
@@ -41,7 +43,8 @@ network filesystems, multi-host storage, clock regression or production traffic.
 
 Production acceptance still needs an operator-selected environment and measured
 targets: concurrency and fixture volume, p95/p99 latency, lock-timeout frequency,
-disk exhaustion behavior, backup duration, recovery point/time objectives and
+physical disk exhaustion behavior (beyond the tested SQLite page limit), backup
+duration, recovery point/time objectives and
 off-host restoration. Run dependency/security review and representative load/fault
 tests on that environment before claiming those requirements are met.
 
