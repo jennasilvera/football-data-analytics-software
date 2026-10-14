@@ -74,3 +74,9 @@ odds reads through the API, batch service, and CLI. Hash-mismatched records must
 remain storage failures, return a correlated 503 or CLI exit 2, and leave no
 forecast or terminal batch audit. These tests distinguish infrastructure failure
 from a validly read but rejected domain input.
+
+Request-boundary tests cover non-finite numeric values and overflow, malformed JSON,
+unknown fields, exact/over-limit body sizes, and authentication precedence. A direct
+ASGI stream without Content-Length crosses the body limit in three chunks and must
+stop reading before dispatch, with a correlated 413 response. Validation responses
+retain field/error metadata while omitting raw inputs and parser context.
