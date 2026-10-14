@@ -18,6 +18,7 @@ behavior depends on another process, a write lock, a retry or a restored databas
 | API + unavailable SQLite | Structured failure, request correlation and successful recovery | Real write-lock contention, health/read errors and subsequent write success |
 | SQLite capacity + atomic write | Exhaustion cannot retain a partial batch | SQLITE_FULL induced with a page limit; rollback and recovery after removing the limit |
 | Backup + complete revision history | Structurally valid storage cannot conceal altered historical records | Superseded/future-visible payload tampering, malformed JSON and nonfinite values abort publication |
+| Publication + unchanged IDs + altered content | Guarded inputs and duplicate records must still match their hashes | Tampering after snapshot selection blocks both write paths; a corrupt duplicate rolls back earlier inserts |
 | Installed Python packages | Declared dependency requirements are mutually satisfied | python -m pip check after CI installs the pinned lockfile and editable package |
 
 The process tests use SQLite's actual WAL transactions and independent spawned
