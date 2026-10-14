@@ -167,3 +167,30 @@ def test_failed_integrity_check_prevents_publication(repository, tmp_path, monke
         repository.backup(destination)
     assert not destination.exists()
     assert not list(tmp_path.glob(".backup-*"))
+
+
+@pytest.mark.parametrize("hidden", ["superseded", "future"])
+@pytest.mark.parametrize("raw", ['{"altered":true}', "{invalid", "[]", '{"x":NaN}'])
+def test_backup_rejects_corrupt_hidden_revisions(tmp_path, hidden, raw):
+    from football_analytics.storage.repository import RepositoryIntegrityError
+
+    repo = Repository(tmp_path / "db")
+    first = datetime(2020, 1, 1, tzinfo=UTC)
+    current = datetime(2021, 1, 1, tzinfo=UTC)
+    hidden_at = first if hidden == "superseded" else datetime(2100, 1, 1, tzinfo=UTC)
+    bad = repo.put("team", "A", {"name": "old"}, available_at=hidden_at, recorded_at=hidden_at)
+    repo.put("team", "A", {"name": "current"}, available_at=current, recorded_at=current)
+    with repo.connection() as db:
+        db.execute("UPDATE records SET payload=? WHERE record_id=?", (raw, bad))
+    assert repo.health()  # SQLite structure remains valid.
+    assert repo.get("team", "A")["payload"] == {"name": "current"}
+    destination = tmp_path / "backup"
+    with pytest.raises(RepositoryIntegrityError, match="content integrity"):
+        repo.backup(destination)
+    assert not destination.exists()
+    assert not list(tmp_path.glob(".backup-*"))
+    # Failure does not delete or repair the source evidence.
+    with repo.connection() as db:
+        assert db.execute("SELECT payload FROM records WHERE record_id=?", (bad,)).fetchone() == (
+            raw,
+        )

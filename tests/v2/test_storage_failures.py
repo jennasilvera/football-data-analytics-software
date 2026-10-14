@@ -105,3 +105,21 @@ def test_api_read_storage_errors_do_not_expose_internal_details(tmp_path, monkey
     assert "SQL" not in response.text
     assert client.get("/version").status_code == 200
     assert client.get("/teams").status_code == 401
+
+
+@pytest.mark.parametrize("raw", ['{"changed":true}', "{invalid", "[]", '{"x":NaN}'])
+def test_corrupt_record_is_storage_failure_not_client_validation(tmp_path, raw, caplog):
+    app = api.create_app(Settings(tmp_path / "db", KEY))
+    repo = app.state.repository
+    now = datetime.now(UTC)
+    repo.put("team", "A", {"name": "A"}, available_at=now)
+    with repo.connection() as db:
+        db.execute("UPDATE records SET payload=?", (raw,))
+    client = TestClient(app)
+    response = client.get("/teams/A", headers={"Authorization": "Bearer " + KEY})
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Storage unavailable; operation not confirmed"}
+    assert response.headers["X-Request-ID"]
+    assert any(r.error_type == "RepositoryIntegrityError" for r in caplog.records
+               if r.message == "storage_unavailable")
+    assert raw not in response.text

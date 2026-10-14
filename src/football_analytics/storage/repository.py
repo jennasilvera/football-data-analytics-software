@@ -17,6 +17,10 @@ from football_analytics.data.contracts import ensure_utc
 from football_analytics.models.postprocessing import content_id
 
 
+class RepositoryIntegrityError(ValueError):
+    """A stored record cannot be decoded or no longer matches its content identity."""
+
+
 class PublicationDeadlineError(ValueError):
     """A time-sensitive transaction missed its final publication deadline."""
 
@@ -129,13 +133,9 @@ class Repository:
             ).fetchone()
             if existing:
                 identity, available, recorded, raw = existing
-                result: dict[str, Any] = json.loads(raw)
-                body = {
-                    "kind": kind, "entity_id": entity_id, "available_at": available,
-                    "recorded_at": recorded, "payload": result,
-                }
-                if identity != content_id("record_", body):
-                    raise ValueError("Repository content integrity failure.")
+                result: dict[str, Any] = _decode_record(
+                    kind, entity_id, identity, available, recorded, raw
+                )["payload"]
                 if result.get("request_id") != payload["request_id"]:
                     raise ValueError("Run ID already belongs to a different request.")
                 return result
@@ -178,16 +178,7 @@ class Repository:
             ).fetchall()
         result = []
         for entity, identity, available, recorded, raw in rows:
-            payload = json.loads(raw)
-            body = {
-                "kind": kind,
-                "entity_id": entity,
-                "available_at": available,
-                "recorded_at": recorded,
-                "payload": payload,
-            }
-            if identity != content_id("record_", body):
-                raise ValueError("Repository content integrity failure.")
+            body = _decode_record(kind, entity, identity, available, recorded, raw)
             result.append({"record_id": identity, **body})
         return result
 
@@ -225,6 +216,13 @@ class Repository:
                         raise sqlite3.DatabaseError("Backup could not leave WAL mode.")
                     if target.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
                         raise sqlite3.DatabaseError("Backup integrity check failed.")
+                    # Verify every revision, including superseded and future-visible
+                    # records that ordinary latest/as-of reads may never encounter.
+                    for row in target.execute(
+                        "SELECT kind, entity_id, record_id, available_at, recorded_at, "
+                        "payload FROM records ORDER BY sequence"
+                    ):
+                        _decode_record(*row)
                 finally:
                     target.close()
             with temporary.open("rb") as handle:
@@ -287,3 +285,22 @@ def _check_publication_inputs(
             raise PublicationConflictError(
                 f"Publication input changed: {expected_kind}/{expected_entity}."
             )
+
+
+
+def _decode_record(
+    kind: str, entity_id: str, identity: str, available: str, recorded: str, raw: str,
+) -> dict[str, Any]:
+    try:
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            raise ValueError("Record payload must be an object.")
+        body = {
+            "kind": kind, "entity_id": entity_id, "available_at": available,
+            "recorded_at": recorded, "payload": payload,
+        }
+        if identity != content_id("record_", body):
+            raise ValueError("Record hash mismatch.")
+    except (ValueError, TypeError) as exc:
+        raise RepositoryIntegrityError("Repository content integrity failure.") from exc
+    return body
