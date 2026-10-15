@@ -101,3 +101,9 @@ unknown identities, empty batches, fixture-only schemas, and out-of-scope decisi
 Validation reports are stable across retries and leave operational records empty;
 ingestion still refuses rejected batches. Unparseable rows exit 2 without a partial
 report. Validation does not certify data rights or cross-import consistency.
+
+Match-history acceptance covers superseded records, as-of visibility, backdated
+commits after the first page, retained sequence values after backup, API
+authentication on both route prefixes, CLI continuation, invalid sequence/UTC
+parameters and hash verification of older revisions. Stable pages require both
+timestamp and committed-sequence snapshot fields.

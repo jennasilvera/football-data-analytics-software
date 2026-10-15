@@ -14,7 +14,7 @@ Targets are **regulation-time goals and 1X2 outcomes**. Unknown score bases, ext
 
 ## What is implemented
 
-- Canonical ingestion, explicit aliases, scope validation, duplicate detection, source hashes and reviewable data-onboarding reports.
+- Canonical ingestion, explicit aliases, scope validation, duplicate detection, source hashes, reviewable data-onboarding reports and paginated match revision history.
 - Elo replay, Glicko-1 rating/deviation history, inactivity uncertainty and team reports.
 - Declared form, strength, schedule, competition, rankings, squad, travel, market and manual feature families.
 - Frequency, logistic regression, histogram gradient boosting and independent Poisson models; nested temporal temperature calibration and convex ensembles.
@@ -56,6 +56,7 @@ football-analytics train --help
 football-analytics validate-data --help
 football-analytics ingest-results --help
 football-analytics predict --help
+football-analytics match-history --help
 ```
 
 Daily fixture windows can be forecast atomically with `predict-batch`; durable run IDs support retries and the dashboard exposes batch audits. See the [native daily runbook](docs/daily_forecast_runbook.md).

@@ -43,6 +43,7 @@ COMMANDS = {
     "update-ratings",
     "team-report",
     "match-report",
+    "match-history",
     "model-card",
     "approve-model",
     "revoke-model",
@@ -75,6 +76,11 @@ def parser() -> argparse.ArgumentParser:
                 "--score-basis", choices=[b.value for b in ScoreBasis], default="unknown"
             )
             c.add_argument("--legal-use-notes", required=True)
+        if name == "match-history":
+            c.add_argument("--as-of", type=datetime.fromisoformat)
+            c.add_argument("--through-sequence", type=int)
+            c.add_argument("--after-sequence", type=int, default=0)
+            c.add_argument("--limit", type=int, default=100)
         if name == "validate-data":
             c.add_argument("--data-kind", choices=["results", "fixtures"], default="results")
         if name == "drift-report":
@@ -95,7 +101,7 @@ def parser() -> argparse.ArgumentParser:
             "import-research",
         ):
             c.add_argument("--model-id", required=True)
-        if name in ("predict", "match-report", "build-features"):
+        if name in ("predict", "match-report", "match-history", "build-features"):
             c.add_argument("--match-id", required=True)
         if name in ("predict-batch", "batch-report"):
             c.add_argument("--run-id", required=True)
@@ -394,6 +400,13 @@ def execute(args, repo: Repository, now: datetime):
         return result
     if command == "team-report":
         return team_report(repo, args.team, now)
+    if command == "match-history":
+        from football_analytics.services.history import match_revision_history
+
+        return match_revision_history(
+            repo, args.match_id, as_of=args.as_of, through_sequence=args.through_sequence,
+            after_sequence=args.after_sequence, limit=args.limit,
+        )
     if command == "match-report":
         return {
             "match": repo.get("match", args.match_id)["payload"],

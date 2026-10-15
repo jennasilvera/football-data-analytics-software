@@ -183,6 +183,30 @@ class Repository:
             result.append({"record_id": identity, **body})
         return result
 
+    def history(
+        self, kind: str, entity_id: str, *, as_of: datetime,
+        through_sequence: int, after_sequence: int = 0, limit: int = 100,
+    ) -> List[dict[str, Any]]:
+        """Read revisions in committed sequence order within a frozen boundary."""
+        if type(limit) is not int or not 1 <= limit <= 10000:
+            raise ValueError("Repository limit must lie in [1, 10000].")
+        for value in (through_sequence, after_sequence):
+            if type(value) is not int or not 0 <= value < 2**63:
+                raise ValueError("Invalid history sequence.")
+        cutoff = ensure_utc(as_of).isoformat()
+        with self.connection() as db:
+            rows = db.execute(
+                "SELECT sequence, record_id, available_at, recorded_at, payload FROM records "
+                "WHERE kind=? AND entity_id=? AND available_at<=? AND recorded_at<=? "
+                "AND sequence>? AND sequence<=? ORDER BY sequence LIMIT ?",
+                (kind, entity_id, cutoff, cutoff, after_sequence, through_sequence, limit),
+            ).fetchall()
+        return [
+            {"sequence": sequence, "record_id": identity,
+             **_decode_record(kind, entity_id, identity, available, recorded, raw)}
+            for sequence, identity, available, recorded, raw in rows
+        ]
+
     def scan(self, kind: str, *, as_of: datetime | None = None) -> List[dict[str, Any]]:
         cutoff = ensure_utc(as_of or datetime.now(UTC))
         boundary = self.snapshot_sequence()
