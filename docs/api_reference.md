@@ -181,3 +181,23 @@ The dashboard defaults to the v1 base, and Compose sets `FOOTBALL_API_URL` to
 base URL, so existing deployments configured with an unversioned base continue to
 use the compatibility routes. Middleware/lifecycle stay in `api/main.py`; route
 registration and request contracts live in `api/routes.py`.
+
+## Data onboarding validation
+
+`validate-data` emits a deterministic JSON canonicalization report, including when
+rows are rejected. Use `--data-kind results` (default) or `--data-kind fixtures`;
+`--results` names the input CSV in either case. Source, catalog and scope declarations
+are the same as ingestion. `--output` optionally publishes the immutable report.
+
+Reports contain source SHA-256, catalog identity, report identity, counts, normalized
+match identities, and excluded/quarantined row identities with reasons. An empty
+batch has `valid: false` and `batch_errors: ["empty_batch"]`. Exit codes are 0 for
+valid input, 1 for an emitted invalid report, and 2 for parsing, catalog, storage or
+output-publication failure. Validation does not ingest records. Ingestion still
+refuses batches with any excluded/quarantined observations atomically.
+
+This report covers canonicalization of the supplied batch. It does not certify
+cross-import uniqueness, historical publication availability, licensing, predictive
+quality or serving eligibility. Malformed source schemas or values that cannot form
+observations fail before a report can be produced. Report IDs do not include a run
+time, so repeating validation with identical data, catalogs and policy is stable.

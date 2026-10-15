@@ -75,6 +75,8 @@ def parser() -> argparse.ArgumentParser:
                 "--score-basis", choices=[b.value for b in ScoreBasis], default="unknown"
             )
             c.add_argument("--legal-use-notes", required=True)
+        if name == "validate-data":
+            c.add_argument("--data-kind", choices=["results", "fixtures"], default="results")
         if name == "drift-report":
             c.add_argument("--reference", type=Path, required=True)
             c.add_argument("--current", type=Path, required=True)
@@ -135,6 +137,8 @@ def run(argv: list[str]) -> None:
             if getattr(args, "output", None) and args.command != "backup":
                 publish_immutable(args.output, encoded)
             print(encoded.decode())
+            if args.command == "validate-data" and not result["valid"]:
+                p.exit(1, "Validation failed; inspect report issues. No records ingested.\n")
             if args.command == "predict-batch" and result.get("status") == "failed":
                 p.exit(1, "Batch failed; audit retained and no forecasts published.\n")
     except (ValueError, OSError, KeyError, sqlite3.Error) as exc:
@@ -152,7 +156,9 @@ def execute(args, repo: Repository, now: datetime):
 
         frame = pd.read_csv(io.BytesIO(raw))
         digest = hashlib.sha256(raw).hexdigest()
-        if command == "ingest-fixtures":
+        if command == "ingest-fixtures" or (
+            command == "validate-data" and args.data_kind == "fixtures"
+        ):
             observations = build_match_observations(
                 frame,
                 columns=TabularMatchColumns(
@@ -190,13 +196,19 @@ def execute(args, repo: Repository, now: datetime):
             team_resolver=catalogs.team_resolver(),
             competition_resolver=catalogs.competition_resolver(),
         )
+        if command == "validate-data":
+            from football_analytics.services.data_quality import validation_report
+
+            return validation_report(
+                normalized, source_id=args.source_id, source_sha256=digest,
+                catalog_id=content_id("catalog_", json_safe(catalogs)),
+                data_kind=args.data_kind,
+            )
         if normalized.excluded or normalized.quarantined:
             raise ValueError(
                 f"Ingestion refused: {len(normalized.excluded)} excluded and "
                 f"{len(normalized.quarantined)} quarantined observations"
             )
-        if command == "validate-data":
-            return {"valid": True, "matches": len(normalized.normalized), "source_sha256": digest}
         if command == "train":
             bundle = train_forecast_bundle(
                 observations,
