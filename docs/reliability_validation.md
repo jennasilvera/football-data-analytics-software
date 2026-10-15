@@ -95,3 +95,9 @@ shared validation/body-limit/storage errors, and cross-prefix snapshot paginatio
 The trained-model serving lifecycle runs through both prefixes; operational demos
 and container checks exercise v1, while existing root-route regression coverage
 protects compatibility. Dashboard navigation uses the versioned default base.
+
+Data onboarding acceptance exercises valid and rejected results, duplicate fixtures,
+unknown identities, empty batches, fixture-only schemas, and out-of-scope decisions.
+Validation reports are stable across retries and leave operational records empty;
+ingestion still refuses rejected batches. Unparseable rows exit 2 without a partial
+report. Validation does not certify data rights or cross-import consistency.

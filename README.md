@@ -14,7 +14,7 @@ Targets are **regulation-time goals and 1X2 outcomes**. Unknown score bases, ext
 
 ## What is implemented
 
-- Canonical ingestion, explicit aliases, scope validation, duplicate detection and source hashes.
+- Canonical ingestion, explicit aliases, scope validation, duplicate detection, source hashes and reviewable data-onboarding reports.
 - Elo replay, Glicko-1 rating/deviation history, inactivity uncertainty and team reports.
 - Declared form, strength, schedule, competition, rankings, squad, travel, market and manual feature families.
 - Frequency, logistic regression, histogram gradient boosting and independent Poisson models; nested temporal temperature calibration and convex ensembles.
@@ -53,6 +53,7 @@ Research demonstrations write content-addressed reports under `outputs/v2-resear
 ```bash
 football-analytics research --help
 football-analytics train --help
+football-analytics validate-data --help
 football-analytics ingest-results --help
 football-analytics predict --help
 ```
