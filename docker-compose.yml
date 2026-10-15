@@ -23,7 +23,7 @@ services:
     ports:
       - "127.0.0.1:8501:8501"
     environment:
-      FOOTBALL_API_URL: http://api:8000
+      FOOTBALL_API_URL: http://api:8000/api/v1
     healthcheck:
       test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8501/_stcore/health',timeout=3)"]
       interval: 10s

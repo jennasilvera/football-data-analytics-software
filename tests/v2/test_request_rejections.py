@@ -72,12 +72,12 @@ def test_chunked_oversize_stops_reading_and_never_dispatches(tmp_path, monkeypat
     import asyncio
     import json
 
-    from football_analytics.api import main as api
+    from football_analytics.api import routes as api_routes
 
     app = create_app(Settings(tmp_path / "db", KEY))
     def unexpected_dispatch(*args, **kwargs):
         pytest.fail("Oversized request reached forecasting")
-    monkeypatch.setattr(api, "predict_and_publish", unexpected_dispatch)
+    monkeypatch.setattr(api_routes, "predict_and_publish", unexpected_dispatch)
     messages = []
     consumed = 0
 

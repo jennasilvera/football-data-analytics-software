@@ -107,8 +107,9 @@ jobs:
           FOOTBALL_API_KEY: ci-only-container-smoke-key-not-for-deployment
         run: |
           curl --fail http://127.0.0.1:8000/health
+          curl --fail http://127.0.0.1:8000/api/v1/health
           curl --fail http://127.0.0.1:8501/_stcore/health
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/teams)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/v1/teams)" = "401"
           test "$(docker compose exec -T api id -u)" = "10001"
       - name: Container logs and cleanup
         if: always()
