@@ -134,6 +134,21 @@ def create_router(repo: Repository, settings: Settings) -> APIRouter:
     def match(match_id: str):
         return repo.get("match", match_id)["payload"]
 
+    @router.get("/matches/{match_id}/history", dependencies=auth)
+    def match_history(
+        match_id: str,
+        limit: int = Query(100, ge=1, le=1000),
+        as_of: datetime | None = None,
+        through_sequence: int | None = Query(None, ge=0, le=2**63 - 1),
+        after_sequence: int = Query(0, ge=0, le=2**63 - 1),
+    ):
+        from football_analytics.services.history import match_revision_history
+
+        return match_revision_history(
+            repo, match_id, as_of=as_of, through_sequence=through_sequence,
+            after_sequence=after_sequence, limit=limit,
+        )
+
     @router.get("/predictions", dependencies=auth)
     def predictions(
         limit: int = Query(100, ge=1, le=1000),

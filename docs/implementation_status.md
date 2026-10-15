@@ -5,7 +5,7 @@ Native platform release 0.3.0 completes an executable implementation of the prof
 | Product module | Native implementation | Remaining acceptance boundary |
 |---|---|---|
 | Ingestion, validation, entity resolution | Canonical catalogs, aliases, source hashes, tabular/results/fixtures/rankings/odds imports, scope/duplicate checks, deterministic validation reports with rejection reasons and atomic batches | Licensed provider integrations, real coverage and source archives |
-| Data and revision integrity | UTC provenance, leakage controls, append-only bitemporal SQLite revisions and as-of reads | Unknown historical revisions cannot be reconstructed |
+| Data and revision integrity | UTC provenance, leakage controls, append-only bitemporal SQLite revisions, as-of reads and API/CLI match revision inspection | Unknown historical revisions cannot be reconstructed |
 | Ratings | Elo replay/parity, Glicko-1 periods, deviation/inactivity and rating history | Football-specific tuning and uncertainty coverage |
 | Features | Form 5/10/20, strength, schedule, competition, rankings, adjacent-publication ranking trends/buckets, squad, travel, market, manual context; status/lineage; persisted form vectors | Real exogenous input availability; specialized research signals |
 | Forecasting/calibration | Frequency, logistic, histogram boosting, legacy-parity and joint opponent-adjusted Poisson, held-out temperature transforms and convex ensemble; portable JSON replay | Real-data performance, validated match-probability intervals |

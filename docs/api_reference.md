@@ -201,3 +201,35 @@ cross-import uniqueness, historical publication availability, licensing, predict
 quality or serving eligibility. Malformed source schemas or values that cannot form
 observations fail before a report can be produced. Report IDs do not include a run
 time, so repeating validation with identical data, catalogs and policy is stable.
+
+## Match revision history
+
+Authenticated `GET /api/v1/matches/{match_id}/history` returns revision envelopes
+with `record_id`, `sequence`, `available_at`, `recorded_at`, and the original stored
+`payload`, including source provenance when present. This inspects observed storage
+history rather than reconstructing uncollected provider revisions. The unversioned
+compatibility route is also available.
+
+Supply `as_of` to inspect a historical UTC cutoff; both availability and recording
+times must be eligible. The response includes `as_of`, `through_sequence`, `limit`,
+`truncated`, and `next_cursor`. Results are ordered by ascending commit sequence,
+which can differ from timestamp order for backdated imports. To continue, pass
+`next_cursor` as `after_sequence` together with both snapshot fields. Continuation
+without the snapshot fields is rejected. Limits are 1–1,000 (default 100). A match
+with no visible revisions returns an empty page. Old revisions are content-verified;
+corruption returns 503 even when the latest revision is intact.
+
+The CLI exposes the same service and snapshot fields:
+
+```bash
+football-analytics match-history --database outputs/platform.sqlite3 \
+  --match-id canonical-match-id --limit 100
+# Continue with values returned by the first call:
+football-analytics match-history --database outputs/platform.sqlite3 \
+  --match-id canonical-match-id --as-of 2026-10-15T20:00:00+00:00 \
+  --through-sequence 120 --after-sequence 40
+```
+
+CLI `--output` uses immutable publication; invalid parameters exit 2. Snapshot
+sequences belong to the same database history and should be discarded after a
+replacement or restore. A backup preserving that history retains sequence values.
