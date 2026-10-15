@@ -80,3 +80,11 @@ unknown fields, exact/over-limit body sizes, and authentication precedence. A di
 ASGI stream without Content-Length crosses the body limit in three chunks and must
 stop reading before dispatch, with a correlated 413 response. Validation responses
 retain field/error metadata while omitting raw inputs and parser context.
+
+Immutable output/model publication syncs the completed staging file before linking
+the final name, then syncs its parent directory before returning success. Identical
+retries also sync the directory. Fault injection covers file-sync failure (no final
+file), directory-sync failure (complete file retained, error propagated), and retry
+recovery; concurrent writers test identical and conflicting content with no partial
+outputs or leftover staging files on normal completion. These are syscall ordering
+and failure tests, not a power-loss or filesystem qualification test.

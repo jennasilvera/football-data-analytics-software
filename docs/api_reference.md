@@ -153,3 +153,11 @@ inputs JSON-safe and avoids echoing submitted values. POST bodies are limited to
 return 413 with the same X-Request-ID header and completion log as other responses.
 The buffer checks each chunk before appending it and stops reading when over limit.
 Ingress timeouts, network buffering, and connection cleanup remain deployment concerns.
+
+Immutable CLI output and model files sync both file bytes and the containing
+directory before acknowledging publication. If directory sync fails after linking,
+the command reports failure while a complete final file may remain. Retry the
+same bytes at the same path to recheck content and sync the directory; differing
+bytes remain a conflict. This assumes a provisioned durable output directory and
+a filesystem supporting hard links and directory fsync. Newly created ancestor
+directories and machine/storage loss require deployment-level durability controls.

@@ -626,3 +626,45 @@ def test_corruption_stays_a_storage_failure(setup, kind, interface, caplog, caps
         assert result["status"] == "completed"
         assert result["counts"]["forecasted"] == 1
         assert forecast_batch(repo, **args) == result
+
+
+def test_committed_batch_export_recovers_after_directory_sync_failure(
+    setup, tmp_path, monkeypatch, capsys
+):
+    import os
+    import stat
+
+    from football_analytics.services import batches
+
+    repo, args, _ = setup
+    target = tmp_path / "batch.json"
+    command = [
+        "predict-batch", "--database", str(repo.path), "--run-id", args["run_id"],
+        "--model-id", args["model_id"], "--from-date", str(args["from_date"]),
+        "--through-date", str(args["through_date"]), "--max-model-age-days", "5000",
+        "--output", str(target),
+    ]
+    original = os.fsync
+    def fail_directory(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError("directory sync failed")
+        original(fd)
+    monkeypatch.setattr(os, "fsync", fail_directory)
+    with pytest.raises(SystemExit) as exc:
+        main(command)
+    assert exc.value.code == 2
+    captured = capsys.readouterr()
+    assert "directory sync failed" in captured.err
+    assert not captured.out
+    report = repo.get("forecast_batch", args["run_id"])["payload"]
+    assert report["status"] == "completed"
+    assert json.loads(target.read_text()) == report
+    stored_ids = [row["record_id"] for row in repo.scan("forecast")]
+    monkeypatch.setattr(os, "fsync", original)
+    def no_recompute(*positional, **kwargs):
+        pytest.fail("Retry recomputed a committed forecast")
+    monkeypatch.setattr(batches, "forecast_match", no_recompute)
+    main(command)
+    assert json.loads(capsys.readouterr().out) == report
+    assert json.loads(target.read_text()) == report
+    assert [row["record_id"] for row in repo.scan("forecast")] == stored_ids
