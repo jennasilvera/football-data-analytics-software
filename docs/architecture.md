@@ -28,7 +28,7 @@ flowchart TD
 
 ## Storage and model lifecycle
 
-Operational data lives in one SQLite database with WAL and a 30-second busy timeout. Revision selection requires `available_at <= as_of` and `recorded_at <= as_of`; the latest known recording wins per entity. Keyset pagination retains a fixed as-of timestamp across pages. Concurrent writers serialize through SQLite. This is a single-instance baseline, not a distributed feature store.
+Operational data lives in one SQLite database with WAL and a 30-second busy timeout. Revision selection requires `available_at <= as_of` and `recorded_at <= as_of`; the latest known recording wins per entity. Keyset pagination retains a fixed as-of timestamp and committed sequence boundary across pages. Concurrent writers serialize through SQLite. This is a single-instance baseline, not a distributed feature store.
 
 Model candidates contain validated portable frequency/logistic/tree and Poisson state, optional calibration/ensemble transforms, frozen training records, canonical catalogs and feature context. All inference is JSON plus numeric operations. Exported sklearn classifiers are checked for prediction parity before publication; the locked exporter version and regression tests protect the private tree-export boundary.
 
@@ -43,3 +43,8 @@ Batch match imports and snapshot imports validate before transactional insertion
 The bundle intentionally freezes historical features. New results require retraining; fresh odds can still annotate a forecast as a separate market comparison. Research flat-file availability assumptions are visible in every bundle. Bitemporal storage records revisions observed after deployment; it cannot reconstruct revisions never collected.
 
 Team/watchlist reports replay available histories on demand. They are intended for national-team research scale; no throughput or latency SLO is claimed. Use measured workloads before caching, adding workers, or migrating storage.
+
+The HTTP application separates middleware, error translation, and repository lifecycle
+(`api/main.py`) from the v1 route factory (`api/routes.py`). One router is included
+under `/api/v1` and at the root for compatibility; both delegate to the same services
+and repository. OpenAPI documents canonical v1 routes only.

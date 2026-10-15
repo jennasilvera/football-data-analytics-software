@@ -20,7 +20,7 @@ Targets are **regulation-time goals and 1X2 outcomes**. Unknown score bases, ext
 - Frequency, logistic regression, histogram gradient boosting and independent Poisson models; nested temporal temperature calibration and convex ensembles.
 - Expanding/rolling backtests, paired comparisons, calibration diagnostics, sample-aware slices, family ablation, block-bootstrap loss comparisons, market benchmarks and descriptive feature drift.
 - Portable JSON model artifacts, content-addressed experiments, model review records and forecast audit trails.
-- Authenticated FastAPI service, operational CLI, Streamlit dashboard, SQLite persistence, online backup and recovery acceptance.
+- Versioned authenticated FastAPI service, operational CLI, Streamlit dashboard, SQLite persistence, online backup and recovery acceptance.
 - Pinned dependencies, nonroot containers, structured request logging and CI for tests, research, operations and container startup.
 
 Forecasts contain 1X2 probabilities, Poisson expected goals and score grid, entropy, feature drivers, model/data identities, freshness and market disagreement when available. Match-probability intervals remain explicitly **unvalidated/null**. Glicko intervals describe the rating scale. Logistic drivers are model contributions, not causal explanations or ensemble attribution.
@@ -68,7 +68,7 @@ football-analytics serve --database outputs/platform.sqlite3
 football-analytics dashboard
 ```
 
-Use the dashboard's password field for the API key. The default API URL is `http://127.0.0.1:8000`. `/health` and `/version` are public; business endpoints require `Authorization: Bearer <key>`. Interactive API schemas are at `/docs`. Container setup and model operations are in the [deployment guide](docs/deployment_guide.md).
+Use the dashboard's password field for the API key. The dashboard defaults to `http://127.0.0.1:8000/api/v1`. Canonical API routes use the `/api/v1` prefix; the original unversioned URLs remain compatibility aliases. `/health` and `/version` are public; business endpoints require `Authorization: Bearer <key>`. Interactive API schemas are at `/docs`. Container setup and model operations are in the [deployment guide](docs/deployment_guide.md).
 
 ## Architecture and documentation
 

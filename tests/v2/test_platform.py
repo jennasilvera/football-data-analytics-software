@@ -145,7 +145,8 @@ def test_glicko_published_example_and_inactivity():
     assert inflate(state, 100000).deviation == 350
 
 
-def test_native_api_auth_approval_forecast_and_read_routes(tmp_path, bundle):
+@pytest.mark.parametrize("prefix", ["", "/api/v1"])
+def test_native_api_auth_approval_forecast_and_read_routes(tmp_path, bundle, prefix):
     settings = Settings(
         tmp_path / "api.sqlite3",
         "a-secure-test-key-of-more-than-24-characters",
@@ -174,24 +175,24 @@ def test_native_api_auth_approval_forecast_and_read_routes(tmp_path, bundle):
         available_at=now,
         recorded_at=now,
     )
-    assert client.get("/health").status_code == 200
-    assert client.get("/teams").status_code == 401
+    assert client.get(prefix + "/health").status_code == 200
+    assert client.get(prefix + "/teams").status_code == 401
     client.headers["Authorization"] = "Bearer " + settings.api_key
-    first_page = client.get("/teams?limit=2").json()
+    first_page = client.get(prefix + "/teams?limit=2").json()
     second_page = client.get(
-        "/teams",
+        prefix + "/teams",
         params={"limit": 2, "after": first_page["next_cursor"], "as_of": first_page["as_of"]},
     ).json()
     assert len(first_page["items"] + second_page["items"]) == 4
     assert not set(r["team_id"] for r in first_page["items"]) & set(
         r["team_id"] for r in second_page["items"]
     )
-    assert client.get("/teams?as_of=2020-01-01").status_code == 422
-    assert client.post("/predict", content=b"x" * 16385).status_code == 413
-    assert client.get("/teams?limit=0").status_code == 422
-    assert client.get("/teams/missing").status_code == 404
+    assert client.get(prefix + "/teams?as_of=2020-01-01").status_code == 422
+    assert client.post(prefix + "/predict", content=b"x" * 16385).status_code == 413
+    assert client.get(prefix + "/teams?limit=0").status_code == 422
+    assert client.get(prefix + "/teams/missing").status_code == 404
     request = {"model_id": bundle["bundle_id"], "match_id": "future"}
-    assert client.post("/predict", json=request).status_code == 409
+    assert client.post(prefix + "/predict", json=request).status_code == 409
     later = now + timedelta(milliseconds=1)
     metrics_id = repo.put(
         "model_metrics", bundle["bundle_id"], {}, available_at=now, recorded_at=now
@@ -206,11 +207,11 @@ def test_native_api_auth_approval_forecast_and_read_routes(tmp_path, bundle):
         available_at=later,
         recorded_at=later,
     )
-    response = client.post("/predict", json=request)
+    response = client.post(prefix + "/predict", json=request)
     assert response.status_code == 200, response.text
     assert response.headers.get("x-request-id")
     assert (
-        client.get("/predictions").json()["items"][0]["forecast_id"]
+        client.get(prefix + "/predictions").json()["items"][0]["forecast_id"]
         == response.json()["forecast_id"]
     )
     for path in (
@@ -229,14 +230,14 @@ def test_native_api_auth_approval_forecast_and_read_routes(tmp_path, bundle):
         "/diagnostics/regression-watchlist",
         "/diagnostics/breakout-watchlist",
     ):
-        assert client.get(path).status_code == 200, path
-    assert client.get(f"/models/{bundle['bundle_id']}/metrics").status_code == 200
+        assert client.get(prefix + path).status_code == 200, path
+    assert client.get(prefix + f"/models/{bundle['bundle_id']}/metrics").status_code == 200
     repo.put(
         "model_metrics", bundle["bundle_id"], {"new": True},
         available_at=later + timedelta(milliseconds=1),
         recorded_at=later + timedelta(milliseconds=1),
     )
-    assert client.post("/predict", json=request).status_code == 409
+    assert client.post(prefix + "/predict", json=request).status_code == 409
 
 
 def test_production_config_requires_credentials():
@@ -355,7 +356,8 @@ def test_dashboard_all_populated_pages(monkeypatch, bundle):
 
         response = MagicMock()
         response.__enter__.return_value = response
-        response.read.return_value = json.dumps(replies[urlparse(request.full_url).path]).encode()
+        path = urlparse(request.full_url).path.removeprefix("/api/v1")
+        response.read.return_value = json.dumps(replies[path]).encode()
         return response
 
     monkeypatch.setattr(urllib.request, "urlopen", respond)

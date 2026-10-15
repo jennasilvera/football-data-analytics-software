@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from football_analytics.api import main as api
+from football_analytics.api import routes as api_routes
 from football_analytics.config import Settings
 from football_analytics.storage.repository import Repository
 
@@ -64,7 +65,7 @@ def test_api_write_lock_failure_is_correlated_and_recovers(tmp_path, monkeypatch
         return {"forecast_id": "f"}
 
     monkeypatch.setattr(repo, "connection", short_wait)
-    monkeypatch.setattr(api, "predict_and_publish", store_forecast)
+    monkeypatch.setattr(api_routes, "predict_and_publish", store_forecast)
     client = TestClient(app)
     client.headers["Authorization"] = "Bearer " + KEY
     caplog.set_level(logging.INFO, logger="football_analytics.api")

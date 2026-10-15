@@ -161,3 +161,23 @@ same bytes at the same path to recheck content and sync the directory; differing
 bytes remain a conflict. This assumes a provisioned durable output directory and
 a filesystem supporting hard links and directory fsync. Newly created ancestor
 directories and machine/storage loss require deployment-level durability controls.
+
+## API v1 and compatibility
+
+The canonical HTTP base is `http://127.0.0.1:8000/api/v1`; endpoint paths elsewhere
+in this reference are relative to that base. For example, use `/api/v1/teams` and
+`/api/v1/predict`. `/api/v1/health` and `/api/v1/version` are public. `/docs` and
+`/openapi.json` remain at the application root and document the versioned contract.
+The `api_schema` field is 1; this routing change preserves payload schemas.
+
+Every original unversioned URL remains an alias to the same router and services,
+with identical authentication, request limits, exception handling and database.
+Existing clients and health probes can keep their URLs. Pagination snapshot fields
+can be carried between the canonical routes and compatibility aliases. No alias
+removal date is declared. New clients should use `/api/v1`.
+
+The dashboard defaults to the v1 base, and Compose sets `FOOTBALL_API_URL` to
+`http://api:8000/api/v1`. An explicit `FOOTBALL_API_URL` is treated as a complete
+base URL, so existing deployments configured with an unversioned base continue to
+use the compatibility routes. Middleware/lifecycle stay in `api/main.py`; route
+registration and request contracts live in `api/routes.py`.

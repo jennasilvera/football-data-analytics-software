@@ -139,24 +139,24 @@ def main():
         command("model-card", "--model-id", model_id)
         key = "synthetic-acceptance-key-not-for-deployment"
         with TestClient(create_app(Settings(database, key))) as client:
-            assert client.get("/health").status_code == 200
-            assert client.get("/teams").status_code == 401
+            assert client.get("/api/v1/health").status_code == 200
+            assert client.get("/api/v1/teams").status_code == 401
             client.headers["Authorization"] = "Bearer " + key
             assert (
                 client.post(
-                    "/predict", json={"model_id": model_id, "match_id": match_id}
+                    "/api/v1/predict", json={"model_id": model_id, "match_id": match_id}
                 ).status_code
                 == 200
             )
-            assert client.get(f"/models/{model_id}/metrics").status_code == 200
+            assert client.get(f"/api/v1/models/{model_id}/metrics").status_code == 200
             request = {"model_id": model_id, "match_id": match_id}
             command("import-research", "--model-id", model_id, "--input", research["report"])
-            assert client.post("/predict", json=request).status_code == 409
+            assert client.post("/api/v1/predict", json=request).status_code == 409
             command("approve-model", "--model-id", model_id, "--reason", "Reviewed new evidence")
             command("revoke-model", "--model-id", model_id, "--reason", "Synthetic revocation test")
-            assert client.post("/predict", json=request).status_code == 409
+            assert client.post("/api/v1/predict", json=request).status_code == 409
             command("approve-model", "--model-id", model_id, "--reason", "Synthetic recovery test")
-            assert client.post("/predict", json=request).status_code == 200
+            assert client.post("/api/v1/predict", json=request).status_code == 200
         backup = work / "recovery.sqlite3"
         command("backup", "--output", str(backup))
         restored = Repository(backup)

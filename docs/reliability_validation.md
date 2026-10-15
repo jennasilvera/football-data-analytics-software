@@ -88,3 +88,10 @@ file), directory-sync failure (complete file retained, error propagated), and re
 recovery; concurrent writers test identical and conflicting content with no partial
 outputs or leftover staging files on normal completion. These are syscall ordering
 and failure tests, not a power-loss or filesystem qualification test.
+
+API reimplementation acceptance enumerates every route to verify canonical v1 and
+unversioned alias authentication parity, unique canonical OpenAPI operations,
+shared validation/body-limit/storage errors, and cross-prefix snapshot pagination.
+The trained-model serving lifecycle runs through both prefixes; operational demos
+and container checks exercise v1, while existing root-route regression coverage
+protects compatibility. Dashboard navigation uses the versioned default base.

@@ -12,7 +12,7 @@ import streamlit as st
 st.set_page_config(page_title="Football Intelligence", layout="wide")
 st.title("Football Data Analytics Software")
 st.caption("Senior men's A-internationals · Regulation-time forecasts · Auditable research")
-base = os.getenv("FOOTBALL_API_URL", "http://127.0.0.1:8000").rstrip("/")
+base = os.getenv("FOOTBALL_API_URL", "http://127.0.0.1:8000/api/v1").rstrip("/")
 key = st.sidebar.text_input(
     "API access key", value=os.getenv("FOOTBALL_API_KEY", ""), type="password"
 )

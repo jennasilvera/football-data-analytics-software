@@ -170,14 +170,15 @@ def test_dashboard_cursor_navigation_preserves_snapshot(monkeypatch):
     def respond(request, **kwargs):
         url = urlparse(request.full_url)
         params = parse_qs(url.query)
-        calls.append((url.path, params))
+        path = url.path.removeprefix("/api/v1")
+        calls.append((path, params))
         second = "after" in params
         payload = {
             "items": [{"team_id": "Z" if second else "A"}],
             "as_of": "2020-01-01T00:00:00+00:00", "through_sequence": 42,
             "next_cursor": None if second else "A", "truncated": not second,
         }
-        if url.path.startswith("/reports/team/"):
+        if path.startswith("/reports/team/"):
             payload = {"rating": {}, "recent_form": [], "watch_note": "", "rating_history": []}
         response = MagicMock()
         response.__enter__.return_value = response
