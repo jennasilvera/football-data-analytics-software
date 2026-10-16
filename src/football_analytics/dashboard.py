@@ -2,6 +2,7 @@
 
 import json
 import os
+from datetime import UTC, datetime
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -22,6 +23,7 @@ page = st.sidebar.radio(
         "Overview",
         "Ratings",
         "Match forecasts",
+        "Match history",
         "Forecast batches",
         "Team intelligence",
         "Model diagnostics",
@@ -36,15 +38,22 @@ def fetch(path: str):
         return json.load(response)
 
 
-def paged(path: str, label: str):
+def paged(
+    path: str, label: str, *, initial_as_of: str | None = None,
+    cursor_param: str = "after", limit: int | None = None,
+):
     # Timestamp and committed sequence keep Previous/Next on the same snapshot.
     state_key = "collection:" + base + ":" + path
+    if initial_as_of is not None:
+        state_key += ":" + initial_as_of
     if state_key not in st.session_state:
-        st.session_state[state_key] = {"cursors": [None], "as_of": None}
+        st.session_state[state_key] = {"cursors": [None], "as_of": initial_as_of}
     state = st.session_state[state_key]
     params = {}
+    if limit is not None:
+        params["limit"] = limit
     if state["cursors"][-1] is not None:
-        params["after"] = state["cursors"][-1]
+        params[cursor_param] = state["cursors"][-1]
     if state["as_of"] is not None:
         params["as_of"] = state["as_of"]
     if state.get("through_sequence") is not None:
@@ -109,6 +118,50 @@ try:
                 st.json(forecast)
         else:
             st.info("No forecasts have been stored.")
+    elif page == "Match history":
+        matches = paged("/matches", "matches")["items"]
+        choices = {row["match"]["match_id"]: row for row in matches}
+        if choices:
+            selected = st.selectbox("Match", list(choices))
+            cutoff_text = st.text_input(
+                "Historical cutoff (UTC)",
+                help="Optional ISO timestamp with timezone, for example 2020-06-01T12:00:00+00:00",
+            )
+            cutoff = None
+            if cutoff_text.strip():
+                try:
+                    parsed = datetime.fromisoformat(cutoff_text.strip().replace("Z", "+00:00"))
+                    if parsed.tzinfo is None or parsed.utcoffset() is None:
+                        raise ValueError("Historical cutoff requires a timezone")
+                    cutoff = parsed.astimezone(UTC).isoformat()
+                except ValueError:
+                    st.error("Enter an ISO timestamp with a timezone, such as "
+                             "2020-06-01T12:00:00+00:00.")
+                    st.stop()
+            history = paged(
+                "/matches/" + quote(selected, safe="") + "/history", "revisions",
+                initial_as_of=cutoff, cursor_param="after_sequence", limit=25,
+            )
+            st.caption("Revisions are ordered by commit sequence. Later imports may be backdated.")
+            st.write("Snapshot", history["as_of"])
+            revisions = history["items"]
+            if revisions:
+                st.dataframe(pd.DataFrame([
+                    {"sequence": row["sequence"], "record_id": row["record_id"],
+                     "available_at": row["available_at"], "recorded_at": row["recorded_at"],
+                     "status": row["payload"]["match"].get("status"),
+                     "home_score": row["payload"].get("home_score"),
+                     "away_score": row["payload"].get("away_score")}
+                    for row in revisions
+                ]), hide_index=True)
+                by_id = {row["record_id"]: row for row in revisions}
+                revision = st.selectbox("Revision", list(by_id))
+                with st.expander("Stored revision and source provenance", expanded=True):
+                    st.json(by_id[revision])
+            else:
+                st.info("No revisions are visible at this historical cutoff.")
+        else:
+            st.info("No matches have been imported.")
     elif page == "Forecast batches":
         batches = paged("/forecast-batches", "batches")["items"]
         if batches:

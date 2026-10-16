@@ -107,3 +107,9 @@ commits after the first page, retained sequence values after backup, API
 authentication on both route prefixes, CLI continuation, invalid sequence/UTC
 parameters and hash verification of older revisions. Stable pages require both
 timestamp and committed-sequence snapshot fields.
+
+Dashboard match-history tests use Streamlit AppTest backed by the actual API and
+SQLite store. They verify multi-page snapshots despite a later backdated write,
+refresh visibility, independent match selection, historical cutoffs, invalid local
+input, empty states, source metadata and storage-error presentation. Storage errors
+must not appear as empty revision histories.

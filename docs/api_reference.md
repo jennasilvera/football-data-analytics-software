@@ -233,3 +233,10 @@ football-analytics match-history --database outputs/platform.sqlite3 \
 CLI `--output` uses immutable publication; invalid parameters exit 2. Snapshot
 sequences belong to the same database history and should be discarded after a
 replacement or restore. A backup preserving that history retains sequence values.
+
+The dashboard exposes this endpoint in the **Match history** workspace. Select a
+match from the paginated collection, optionally enter an ISO cutoff with timezone,
+and inspect a revision with its source metadata. History pages contain up to 25
+revisions. Previous/Next retain both snapshot fields; Refresh starts a new snapshot
+for the selected match and cutoff. Match selection and cutoff values have separate
+navigation state. Invalid cutoff input is rejected locally before requesting history.
