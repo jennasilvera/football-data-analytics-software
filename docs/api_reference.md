@@ -240,3 +240,25 @@ and inspect a revision with its source metadata. History pages contain up to 25
 revisions. Previous/Next retain both snapshot fields; Refresh starts a new snapshot
 for the selected match and cutoff. Match selection and cutoff values have separate
 navigation state. Invalid cutoff input is rejected locally before requesting history.
+
+## Forecast input lineage
+
+New operational single and batch forecasts include `operational_lineage` with the
+exact model, research evidence, approval, and fixture record IDs guarded at
+publication. This field contributes to `forecast_id`; pure research forecasts
+remain independent of repository records. Existing stored forecasts are unchanged.
+
+Authenticated `GET /api/v1/predictions/{forecast_id}/lineage` (also available via
+the compatibility route) resolves those exact revisions, including superseded
+ones. It returns compact record identities and availability/recording timestamps;
+selected odds record references are included when market enrichment is present.
+It does not return full training bundles. Use `football-analytics forecast-lineage
+--database outputs/platform.sqlite3 --forecast-id <id>` for the same report.
+
+`status: resolved` means referenced records exist and pass content verification;
+it does not mean the model is currently approved or scientifically validated.
+Revocations and later fixture changes do not rewrite historical lineage. Missing,
+corrupt, or incorrectly typed references fail as storage integrity errors (API 503,
+CLI exit 2). Older/research forecasts without operational references return
+`status: unavailable` and `reason: legacy_or_research_forecast`; no references are
+inferred retrospectively. Backup preserves historical references and their records.

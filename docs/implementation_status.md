@@ -14,7 +14,7 @@ Native platform release 0.3.0 completes an executable implementation of the prof
 | API | Versioned `/api/v1` router with unversioned compatibility aliases, all requested endpoint families, authentication, size limits, stable collection pagination, structured logs | Tenant identity, internet edge policy and measured capacity |
 | CLI | Ingestion through candidate training/review/prediction, atomic forecast batches with durable retries, ratings, reports, drift and backup | Provider-specific scheduled job ownership |
 | Dashboard | API-backed overview, ratings, forecasts, team/model diagnostics and post-match views, snapshot-preserving collection navigation, batch audits and historical match revision/provenance inspection | User research and production-scale interaction testing |
-| Governance/docs | Experiment/model identity, source/catalog/context-matched research with metric verification, exact-revision approval/revocation, model card, field/feature dictionary, lineage and runbook | Independent scientific/legal sign-off |
+| Governance/docs | Experiment/model identity, source/catalog/context-matched research with metric verification, exact-revision approval/revocation, resolvable forecast input lineage, model card, field/feature dictionary, lineage and runbook | Independent scientific/legal sign-off |
 | Deployment | Pinned dependencies, nonroot containers, persistent volume, health checks, operational/recovery demo and CI | Provisioned host, TLS, monitoring, incident owners, recovery SLOs |
 
 ## Acceptance commands

@@ -113,3 +113,9 @@ SQLite store. They verify multi-page snapshots despite a later backdated write,
 refresh visibility, independent match selection, historical cutoffs, invalid local
 input, empty states, source metadata and storage-error presentation. Storage errors
 must not appear as empty revision histories.
+
+Operational forecast lineage tests cover single and batch publication with and
+without odds, content identity including revision references, historical resolution
+after revocation/fixture correction, CLI and both API prefixes, and backup recovery.
+Missing or corrupt referenced approvals fail as storage errors; older forecasts
+report missing lineage explicitly. Exact revision lookup enforces temporal visibility.

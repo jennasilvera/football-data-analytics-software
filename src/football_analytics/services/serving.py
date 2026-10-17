@@ -7,6 +7,7 @@ from football_analytics.data.contracts import ensure_utc
 from football_analytics.data.serialization import match_from_dict
 from football_analytics.services.forecasting import forecast_match
 from football_analytics.services.governance import require_approved_model_record
+from football_analytics.services.lineage import attach_operational_lineage
 from football_analytics.services.market import attach_market
 from football_analytics.storage.repository import Repository
 
@@ -38,6 +39,11 @@ def predict_and_publish(
         raise ValueError("Stored match identity disagrees with its payload.")
     forecast = attach_market(
         repo, forecast_match(model, match, prediction_time=now, method=method), now
+    )
+    forecast = attach_operational_lineage(
+        forecast, model_record_id=model_record["record_id"],
+        metrics_record_id=release["metrics_record_id"], approval_record_id=approval["record_id"],
+        match_record_id=source["record_id"],
     )
     finished = max(now, datetime.now(UTC))
     deadline = match.kickoff_at or datetime.combine(match.match_date, datetime.min.time(), UTC)

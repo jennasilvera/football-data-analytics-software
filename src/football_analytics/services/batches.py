@@ -12,6 +12,7 @@ from football_analytics.domain import MatchStatus
 from football_analytics.models.postprocessing import content_id
 from football_analytics.services.forecasting import forecast_match
 from football_analytics.services.governance import require_approved_model_record
+from football_analytics.services.lineage import attach_operational_lineage
 from football_analytics.services.market import attach_market
 from football_analytics.storage.repository import (
     PublicationConflictError,
@@ -124,6 +125,9 @@ def forecast_batch(
                             method=method,
                         ),
                         now,
+                    )
+                    forecast = attach_operational_lineage(
+                        forecast, **report["lineage"], match_record_id=source["record_id"]
                     )
                     forecasts.append(forecast)
                     matches.append(match)
