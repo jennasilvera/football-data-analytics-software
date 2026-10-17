@@ -119,3 +119,9 @@ without odds, content identity including revision references, historical resolut
 after revocation/fixture correction, CLI and both API prefixes, and backup recovery.
 Missing or corrupt referenced approvals fail as storage errors; older forecasts
 report missing lineage explicitly. Exact revision lookup enforces temporal visibility.
+
+Dashboard forecast-lineage tests use the native API and SQLite records to inspect
+exact inputs after model revocation, switch to an older forecast without lineage,
+and repeat inspection after a referenced record is deleted or corrupted. Historical
+inputs must remain visibly distinct from current approval, and a failed inspection
+must not retain a previously successful report or appear as legacy unavailability.

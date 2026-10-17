@@ -116,6 +116,25 @@ try:
             st.dataframe(pd.DataFrame(forecast["explanatory_drivers"]), hide_index=True)
             with st.expander("Complete forecast and lineage"):
                 st.json(forecast)
+            if st.button("Inspect forecast inputs", key="inspect-lineage:" + chosen):
+                lineage = fetch("/predictions/" + quote(chosen, safe="") + "/lineage")
+                if lineage["forecast_id"] != chosen:
+                    raise ValueError("Lineage response belongs to a different forecast")
+                if lineage["status"] == "resolved":
+                    st.subheader("Forecast input revisions")
+                    st.caption(
+                        "These are the exact historical inputs. Resolution does not establish "
+                        "current model approval or validated predictive performance."
+                    )
+                    st.dataframe(pd.DataFrame(lineage["records"]), hide_index=True)
+                    st.download_button(
+                        "Download lineage report", json.dumps(lineage, indent=2),
+                        file_name=chosen + "-lineage.json", mime="application/json",
+                    )
+                elif lineage["status"] == "unavailable":
+                    st.info("Exact input revisions were not recorded for this forecast.")
+                else:
+                    raise ValueError("Unknown lineage resolution status")
         else:
             st.info("No forecasts have been stored.")
     elif page == "Match history":

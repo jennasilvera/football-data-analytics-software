@@ -262,3 +262,10 @@ corrupt, or incorrectly typed references fail as storage integrity errors (API 5
 CLI exit 2). Older/research forecasts without operational references return
 `status: unavailable` and `reason: legacy_or_research_forecast`; no references are
 inferred retrospectively. Backup preserves historical references and their records.
+
+In the dashboard **Match forecasts** workspace, select a forecast and choose
+**Inspect forecast inputs** to resolve its references on demand. The resulting
+revision table can be downloaded as JSON. Legacy/research forecasts display an
+explicit unavailable message. Each inspection requests the current audit from the
+API; prior successful results are not reused after a failed request or after
+selecting another forecast. Historical resolution does not assert current approval.
