@@ -227,6 +227,19 @@ class Repository:
             raise KeyError(entity_id)
         return rows[0]
 
+    def get_record(self, record_id: str, *, as_of: datetime | None = None) -> dict[str, Any]:
+        """Resolve an exact visible revision, including a superseded one."""
+        cutoff = ensure_utc(as_of or datetime.now(UTC)).isoformat()
+        with self.connection() as db:
+            row = db.execute(
+                "SELECT kind, entity_id, record_id, available_at, recorded_at, payload "
+                "FROM records WHERE record_id=? AND available_at<=? AND recorded_at<=?",
+                (record_id, cutoff, cutoff),
+            ).fetchone()
+        if row is None:
+            raise KeyError(record_id)
+        return {"record_id": record_id, **_decode_record(*row)}
+
     def backup(self, destination: Path) -> None:
         """Verify a staged SQLite snapshot, then publish without replacing any file."""
         if destination.resolve() == self.path.resolve() or destination.exists():

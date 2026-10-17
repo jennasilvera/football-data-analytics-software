@@ -158,6 +158,12 @@ def create_router(repo: Repository, settings: Settings) -> APIRouter:
     ):
         return listing("forecast", limit, after, as_of, through_sequence)
 
+    @router.get("/predictions/{forecast_id}/lineage", dependencies=auth)
+    def prediction_lineage(forecast_id: str):
+        from football_analytics.services.lineage import forecast_lineage
+
+        return forecast_lineage(repo, forecast_id)
+
     @router.get("/forecast-batches", dependencies=auth)
     def forecast_batches(
         limit: int = Query(100, ge=1, le=1000),

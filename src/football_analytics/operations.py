@@ -40,6 +40,7 @@ COMMANDS = {
     "predict",
     "predict-batch",
     "batch-report",
+    "forecast-lineage",
     "update-ratings",
     "team-report",
     "match-report",
@@ -103,6 +104,8 @@ def parser() -> argparse.ArgumentParser:
             c.add_argument("--model-id", required=True)
         if name in ("predict", "match-report", "match-history", "build-features"):
             c.add_argument("--match-id", required=True)
+        if name == "forecast-lineage":
+            c.add_argument("--forecast-id", required=True)
         if name in ("predict-batch", "batch-report"):
             c.add_argument("--run-id", required=True)
         if name == "predict-batch":
@@ -376,6 +379,10 @@ def execute(args, repo: Repository, now: datetime):
             expected_records=expected if command == "approve-model" else None,
         )
         return {"model_id": args.model_id, **release}
+    if command == "forecast-lineage":
+        from football_analytics.services.lineage import forecast_lineage
+
+        return forecast_lineage(repo, args.forecast_id)
     if command == "batch-report":
         return repo.get("forecast_batch", args.run_id)["payload"]
     if command == "predict-batch":

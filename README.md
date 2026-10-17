@@ -23,7 +23,7 @@ Targets are **regulation-time goals and 1X2 outcomes**. Unknown score bases, ext
 - Versioned authenticated FastAPI service, operational CLI, Streamlit dashboard, SQLite persistence, online backup and recovery acceptance.
 - Pinned dependencies, nonroot containers, structured request logging and CI for tests, research, operations and container startup.
 
-Forecasts contain 1X2 probabilities, Poisson expected goals and score grid, entropy, feature drivers, model/data identities, freshness and market disagreement when available. Match-probability intervals remain explicitly **unvalidated/null**. Glicko intervals describe the rating scale. Logistic drivers are model contributions, not causal explanations or ensemble attribution.
+Forecasts contain 1X2 probabilities, Poisson expected goals and score grid, entropy, feature drivers, model/data identities, exact operational input revision references, freshness and market disagreement when available. Match-probability intervals remain explicitly **unvalidated/null**. Glicko intervals describe the rating scale. Logistic drivers are model contributions, not causal explanations or ensemble attribution.
 
 See [reliability validation](docs/reliability_validation.md) for process-failure, concurrency, dependency and recovery requirements.
 
@@ -57,6 +57,7 @@ football-analytics validate-data --help
 football-analytics ingest-results --help
 football-analytics predict --help
 football-analytics match-history --help
+football-analytics forecast-lineage --help
 ```
 
 Daily fixture windows can be forecast atomically with `predict-batch`; durable run IDs support retries and the dashboard exposes batch audits. See the [native daily runbook](docs/daily_forecast_runbook.md).

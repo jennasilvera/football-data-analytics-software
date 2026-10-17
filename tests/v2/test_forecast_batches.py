@@ -668,3 +668,114 @@ def test_committed_batch_export_recovers_after_directory_sync_failure(
     assert json.loads(capsys.readouterr().out) == report
     assert json.loads(target.read_text()) == report
     assert [row["record_id"] for row in repo.scan("forecast")] == stored_ids
+
+
+@pytest.mark.parametrize("mode", ["single", "batch"])
+@pytest.mark.parametrize("with_market", [False, True])
+def test_forecasts_preserve_exact_review_and_fixture_lineage(
+    setup, tmp_path, capsys, mode, with_market
+):
+    from football_analytics.models.postprocessing import content_id
+    from football_analytics.services.lineage import forecast_lineage
+    from football_analytics.services.serving import predict_and_publish
+
+    repo, args, _ = setup
+    expected = {
+        "model_record_id": repo.get("model", args["model_id"])["record_id"],
+        "metrics_record_id": repo.get("model_metrics", args["model_id"])["record_id"],
+        "approval_record_id": repo.get("model_release", args["model_id"])["record_id"],
+        "match_record_id": repo.get("match", "future")["record_id"],
+    }
+    market_id = None
+    if with_market:
+        earlier = args["now"] - timedelta(seconds=1)
+        quote = {
+            "match_id": "future", "market_source_id": "synthetic-book",
+            "home_decimal_odds": 2.0, "draw_decimal_odds": 3.5, "away_decimal_odds": 4.0,
+            "score_basis": "regulation_time",
+            "metadata": {"source": "synthetic", "ingested_at": earlier.isoformat(),
+                         "available_at": earlier.isoformat(), "leakage_risk": "safe"},
+        }
+        market_id = repo.put("odds", "quote", quote, available_at=earlier, recorded_at=earlier)
+    if mode == "single":
+        forecast = predict_and_publish(
+            repo, model_id=args["model_id"], match_id="future", now=args["now"],
+            max_model_age_days=5000,
+        )
+    else:
+        batch = forecast_batch(repo, **args)
+        assert batch["status"] == "completed"
+        forecast = repo.get("forecast", batch["fixtures"][0]["forecast_id"])["payload"]
+    assert forecast["operational_lineage"] == {"schema_version": 1, **expected}
+    assert forecast["forecast_id"] == content_id(
+        "forecast_", {key: value for key, value in forecast.items() if key != "forecast_id"}
+    )
+    # A later revocation and fixture correction must not change the audit inputs.
+    now = datetime.now(UTC)
+    repo.put("model_release", args["model_id"], {"status": "revoked"}, available_at=now)
+    fixture = repo.get("match", "future")["payload"]
+    repo.put("match", "future", {**fixture, "correction": True}, available_at=now)
+    report = forecast_lineage(repo, forecast["forecast_id"])
+    assert report["status"] == "resolved"
+    resolved = {row["role"]: row["record_id"] for row in report["records"]}
+    if market_id is not None:
+        assert resolved.pop("market_record_id") == market_id
+    assert resolved == expected
+    assert all("payload" not in row for row in report["records"])
+    backup = tmp_path / "lineage-backup"
+    repo.backup(backup)
+    assert forecast_lineage(Repository(backup), forecast["forecast_id"]) == report
+    main(["forecast-lineage", "--database", str(repo.path),
+          "--forecast-id", forecast["forecast_id"]])
+    assert json.loads(capsys.readouterr().out) == report
+    client = TestClient(create_app(Settings(repo.path, "lineage-api-secret-key-24-chars")))
+    path = "/predictions/" + forecast["forecast_id"] + "/lineage"
+    assert client.get("/api/v1" + path).status_code == 401
+    client.headers["Authorization"] = "Bearer lineage-api-secret-key-24-chars"
+    assert client.get("/api/v1" + path).json() == report
+    assert client.get(path).json() == report
+
+
+@pytest.mark.parametrize("damage", ["missing", "corrupt"])
+def test_lineage_refuses_damaged_historical_input(setup, damage):
+    from football_analytics.services.serving import predict_and_publish
+
+    repo, args, _ = setup
+    forecast = predict_and_publish(
+        repo, model_id=args["model_id"], match_id="future", now=args["now"],
+        max_model_age_days=5000,
+    )
+    identity = forecast["operational_lineage"]["approval_record_id"]
+    with repo.connection() as db:
+        if damage == "missing":
+            db.execute("DELETE FROM records WHERE record_id=?", (identity,))
+        else:
+            db.execute("UPDATE records SET payload='{}' WHERE record_id=?", (identity,))
+    app = create_app(Settings(repo.path, allow_unauthenticated=True))
+    response = TestClient(app).get("/api/v1/predictions/" + forecast["forecast_id"] + "/lineage")
+    assert response.status_code == 503
+    assert response.headers["X-Request-ID"]
+    assert response.json() == {"detail": "Storage unavailable; operation not confirmed"}
+
+
+def test_legacy_forecast_lineage_is_explicitly_unavailable(tmp_path):
+    from football_analytics.services.lineage import forecast_lineage
+
+    repo = Repository(tmp_path / "db")
+    now = datetime.now(UTC)
+    repo.put("forecast", "legacy", {"forecast_id": "legacy"}, available_at=now)
+    assert forecast_lineage(repo, "legacy") == {
+        "forecast_id": "legacy", "status": "unavailable", "records": [],
+        "reason": "legacy_or_research_forecast",
+    }
+
+
+def test_exact_revision_lookup_preserves_temporal_visibility(tmp_path):
+    repo = Repository(tmp_path / "db")
+    first = datetime(2020, 1, 1, tzinfo=UTC)
+    second = first + timedelta(days=1)
+    old = repo.put("match", "m", {"v": 1}, available_at=first, recorded_at=first)
+    new = repo.put("match", "m", {"v": 2}, available_at=second, recorded_at=second)
+    assert repo.get_record(old, as_of=second)["payload"] == {"v": 1}
+    with pytest.raises(KeyError):
+        repo.get_record(new, as_of=first)
